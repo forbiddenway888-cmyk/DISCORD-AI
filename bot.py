@@ -10,8 +10,9 @@ import aiohttp # Make sure this is at the very top!
 import yt_dlp
 
 # These settings stop the music from buffering or crashing randomly
+# These settings stop the music from buffering AND loop it infinitely
 FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -stream_loop -1',
     'options': '-vn'
 }
 YDL_OPTIONS = {
@@ -220,9 +221,9 @@ async def on_message(message):
                     "If the user asks for a video, animation, moving clip, or GIF, you MUST reply starting with exactly the word [VIDEO] followed by a highly descriptive action prompt of what happens in the video. "
                     "CRITICAL RULE 3: YOU ARE A DJ. If the user asks you to join the voice channel (e.g. 'hop in', 'join'), reply with exactly [JOIN]. "
                     "If they ask you to leave (e.g. 'get out', 'stop'), reply with exactly [LEAVE]. "
-                    "If they ask you to play a song (e.g. 'play mask off', 'put on some drake'), reply with exactly [PLAY] followed by the song name. "
+                    "If they ask you to play a specific song, reply with exactly [PLAY] followed by the song name. "
+                    "CRITICAL RULE 4: MOODS & INFINITE MIXES. If the user asks for a vibe or mood (e.g., 'play sad songs', 'play hype music'), DO NOT pick a short song. You MUST search for a massive mix by appending '10 hour mix' to the query (e.g., [PLAY] 10 Hour Sad Bollywood Lofi Mix). "
                     "Do not add any other conversational text when using these tags. Just the tag and the prompt. "
-                    "Example: [VIDEO] A cinematic shot of a spaceship warping through a nebula. "
                     "If they just want to chat normally, reply with normal text and no tags."
                 )
             }
