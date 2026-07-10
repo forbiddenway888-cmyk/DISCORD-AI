@@ -50,8 +50,8 @@ async def on_message(message):
         )
         await message.reply(response.text)
     except Exception as e:
-        print(f"API Error: {e}") 
-        await message.reply("Bro my API just choked, give me a sec.")
+        # This forces the bot to send the EXACT error to Discord
+        await message.reply(f"Bro my API just choked! Here is the exact error: `{str(e)}`")
 
 # Start the web server, THEN start the bot
 if __name__ == "__main__":
