@@ -136,26 +136,32 @@ async def on_message(message):
     elif lower_content.startswith("play "):
         song_query = raw_content[5:].strip()
         
+        # Check if user is in a VC
         if not message.author.voice:
             await message.reply("Join a VC first so I can play this for you!")
             return
             
+        # Join if not already in one
         vc = message.guild.voice_client
         if not vc:
             vc = await message.author.voice.channel.connect()
 
-        await message.reply(f"🔍 Searching YouTube for: `{song_query}`...")
+        await message.reply(f"🔍 Searching for: `{song_query}`...")
         
         try:
+            # We use scsearch (SoundCloud) to completely bypass YouTube's anti-bot wall!
             with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                info = ydl.extract_info(f"ytsearch:{song_query}", download=False)
+                info = ydl.extract_info(f"scsearch:{song_query}", download=False)
+                
                 if 'entries' in info and len(info['entries']) > 0:
                     best_url = info['entries'][0]['url']
                     title = info['entries'][0]['title']
                     
+                    # Stop currently playing song if there is one
                     if vc.is_playing():
                         vc.stop()
                         
+                    # Play the new audio stream
                     source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
                     vc.play(source)
                     await message.reply(f"🎶 **Now Playing:** {title}")
@@ -164,7 +170,8 @@ async def on_message(message):
         except Exception as e:
             print(f"Music Error: {e}")
             await message.reply(f"Music engine crashed: `{str(e)}`")
-        return 
+            
+        return # Stops the message from going to the AI 
 
     # ==========================================
     # IMAGE SCANNER (Checking for uploads)
