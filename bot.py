@@ -45,7 +45,7 @@ async def everyone_reminder():
     # Look through all channels the bot can see
     for channel in discord_client.get_all_channels():
         # Replace "ai-chat" with the exact name of the text channel you want to target
-        if channel.name == "ai-chat" and isinstance(channel, discord.TextChannel):
+        if channel.name == "♠️︱chat︱♠️" and isinstance(channel, discord.TextChannel):
             try:
                 await channel.send("@everyone wake up! Tag me if you want to chat or use the AI!")
                 print("🔥 Sent 20-minute wake-up reminder.")
