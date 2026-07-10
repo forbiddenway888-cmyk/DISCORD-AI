@@ -185,10 +185,50 @@ async def auto_image_dropper():
             except Exception as e:
                 print(f"Auto-image loop error in {channel.name}: {e}")
 
+# ==========================================
+# 🎮 LOOP 4: THE 2-HOUR GAMING NEWS & TIPS DROP
+# ==========================================
+@tasks.loop(hours=2)
+async def gaming_news_loop():
+    # Defines the exact prompts for Groq based on the channel name
+    gaming_channels = {
+        "𖤍︱blox-fruits︱𖤍": "Generate a short, hype news update, rumor, or pro-tip about Roblox Blox Fruits. Talk like a chill teenage gamer bro. Max 2 sentences. No cringe.",
+        "𖤍︱brookhaven︱𖤍": "Generate a short, cool news update, secret spot, or roleplay idea for Roblox Brookhaven. Talk like a chill teenage gamer bro. Max 2 sentences. No cringe.",
+        "꩜︱owo-area︱꩜": "Generate a quick, advanced pro-tip for grinding the Discord OwO bot (like hunting, battling, or zoo tips). Talk like a chill gamer bro. Max 2 sentences. No cringe."
+    }
+
+    for channel in discord_client.get_all_channels():
+        if channel.name in gaming_channels and isinstance(channel, discord.TextChannel):
+            try:
+                # Ask Groq to generate fresh content
+                response = await ai_client.chat.completions.create(
+                    messages=[{"role": "user", "content": gaming_channels[channel.name]}],
+                    model="llama-3.3-70b-versatile"
+                )
+                news_content = response.choices[0].message.content.strip()
+                
+                # Add a clean aesthetic header based on which channel it is
+                if "blox-fruits" in channel.name:
+                    header = "🏴‍☠️ **Blox Fruits Intel:**"
+                elif "brookhaven" in channel.name:
+                    header = "🏡 **Brookhaven Update:**"
+                else:
+                    header = "🐾 **OwO Pro-Tip:**"
+
+                await channel.send(f"{header} {news_content}")
+                
+                # Wait 3 seconds before messaging the next channel so we don't spam the API
+                await asyncio.sleep(3)
+                
+            except Exception as e:
+                print(f"Gaming news loop error in {channel.name}: {e}")
+
 # --- START THE NEW LOOPS WHEN BOT IS READY ---
+# --- START ALL LOOPS WHEN BOT IS READY ---
 @meme_dropper_loop.before_loop
 @chat_wakeupper_loop.before_loop
 @auto_image_dropper.before_loop
+@gaming_news_loop.before_loop  # <--- Added this line!
 async def before_loops():
     await discord_client.wait_until_ready()
     
@@ -207,6 +247,10 @@ async def on_ready():
     # Start the new auto-image dropper
     if not auto_image_dropper.is_running():
         auto_image_dropper.start()
+
+# Start the gaming news dropper
+    if not gaming_news_loop.is_running():
+        gaming_news_loop.start()
 
 
 @discord_client.event
