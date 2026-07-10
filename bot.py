@@ -4,6 +4,7 @@ import asyncio
 from groq import AsyncGroq
 from flask import Flask
 from threading import Thread
+from discord.ext import tasks
 
 # --- FLASK KEEP-ALIVE SERVER ---
 app = Flask('')
@@ -37,6 +38,36 @@ ai_client = AsyncGroq(api_key=GROQ_KEY)
 chat_history = {}
 MAX_HISTORY = 12 # Keeps the last 12 messages so we don't crash Groq's token limit
 
+
+# --- 20-MINUTE AUTO-ANNOUNCEMENT ---
+@tasks.loop(minutes=20)
+async def everyone_reminder():
+    # Look through all channels the bot can see
+    for channel in discord_client.get_all_channels():
+        # Replace "ai-chat" with the exact name of the text channel you want to target
+        if channel.name == "ai-chat" and isinstance(channel, discord.TextChannel):
+            try:
+                await channel.send("@everyone wake up! Tag me if you want to chat or use the AI!")
+                print("🔥 Sent 20-minute wake-up reminder.")
+                break # Stop looking after finding the channel
+            except Exception as e:
+                print(f"Failed to send reminder: {e}")
+
+@everyone_reminder.before_loop
+async def before_reminder():
+    # Forces the loop to wait until the bot is completely logged in before starting
+    await discord_client.wait_until_ready()
+    
+@discord_client.event
+async def on_ready():
+    print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
+    # Start the 20-minute timer as soon as the bot boots up
+    if not everyone_reminder.is_running():
+        everyone_reminder.start()
+# ==========================================
+
+
+# --- MESSAGE HANDLING ---
 @discord_client.event
 async def on_message(message):
     if message.author == discord_client.user:
@@ -90,29 +121,8 @@ async def on_message(message):
         chat_history[user_id].pop() 
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
 
-# --- 20-MINUTE AUTO-ANNOUNCEMENT ---
-async def everyone_reminder():
-    await discord_client.wait_until_ready()
-    while not discord_client.is_closed():
-        # Wait 20 minutes (20 minutes * 60 seconds)
-        await asyncio.sleep(1200) 
-        
-        # Look through all channels the bot can see
-        for channel in discord_client.get_all_channels():
-            # Replace "ai-chat" with the exact name of the text channel you want to target
-            if channel.name == "ai-chat" and isinstance(channel, discord.TextChannel):
-                try:
-                    await channel.send("@everyone wake up! Tag me if you want to chat or use the AI!")
-                    print("🔥 Sent 20-minute wake-up reminder.")
-                    break # Stop looking after finding the channel
-                except Exception as e:
-                    print(f"Failed to send reminder: {e}")
 
 # Start the web server, THEN start the bot
 if __name__ == "__main__":
     keep_alive()
-    
-    # Register the 20-minute reminder background task into Discord's event loop
-    discord_client.loop.create_task(everyone_reminder())
-    
     discord_client.run(DISCORD_TOKEN)
