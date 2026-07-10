@@ -76,40 +76,61 @@ MAX_HISTORY = 12
 
 # --- 20-MINUTE AUTO-ANNOUNCEMENT ---
 # --- 20-MINUTE AUTO-MEME & CHAT STARTER ---
+# ==========================================
+# 🎪 LOOP 1: THE 20-MINUTE MEME DROPPER
+# ==========================================
 @tasks.loop(minutes=20)
-async def everyone_reminder():
+async def meme_dropper_loop():
     for channel in discord_client.get_all_channels():
         if channel.name == "♠️︱chat︱♠️" and isinstance(channel, discord.TextChannel):
             try:
-                # 1. Grab a random meme from Reddit via a free API
-                meme_url = ""
+                # Rip a clean, random meme from Reddit via a free API
                 async with aiohttp.ClientSession() as session:
                     async with session.get('https://meme-api.com/gimme') as resp:
                         if resp.status == 200:
                             meme_data = await resp.json()
                             meme_url = meme_data.get('url', '')
+                            
+                            if meme_url:
+                                await channel.send(meme_url)
+                                print("🔥 Successfully dropped a fresh meme.")
+                break 
+            except Exception as e:
+                print(f"Meme loop error: {e}")
 
-                # 2. Tell Groq to generate a random chat starter
-                prompt = "Generate a completely random, short, human-like chat message to wake up a dead Discord server. Make it a funny question, a hot take about gaming/coding, or just chill bro talk. Max 2 sentences. No cringe."
+# ==========================================
+# 🗣️ LOOP 2: THE 45-MINUTE CHAT WAKE-UPPER
+# ==========================================
+@tasks.loop(minutes=45)
+async def chat_wakeupper_loop():
+    for channel in discord_client.get_all_channels():
+        if channel.name == "♠️︱chat︱♠️" and isinstance(channel, discord.TextChannel):
+            try:
+                # Tell Groq to generate a completely random, casual chat starter
+                prompt = (
+                    "Generate a short, single-sentence chat message to wake up a quiet Discord server. "
+                    "Make it a hot take about gaming, scripting, coding, or just a random question. "
+                    "Talk like a chill teenager who is a member of the server. Do not sound like an AI. "
+                    "Max 15 words. No cringe hashtags or corporate talk."
+                )
                 
                 response = await ai_client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
                     model="llama-3.3-70b-versatile"
                 )
-                msg = response.choices[0].message.content.strip()
+                chat_starter = response.choices[0].message.content.strip()
                 
-                # Send the dynamic AI message and the meme
-                if meme_url:
-                    await channel.send(f"@everyone {msg}\n{meme_url}")
-                else:
-                    await channel.send(f"@everyone {msg}")
-                    
+                # Send the dynamic announcement text cleanly
+                await channel.send(f"@everyone {chat_starter}")
+                print("🔥 Sent a new unique server reminder.")
                 break 
             except Exception as e:
-                print(f"Failed to send meme/reminder: {e}")
+                print(f"Wake-up loop error: {e}")
 
-@everyone_reminder.before_loop
-async def before_reminder():
+# --- START THE NEW LOOPS WHEN BOT IS READY ---
+@meme_dropper_loop.before_loop
+@chat_wakeupper_loop.before_loop
+async def before_loops():
     await discord_client.wait_until_ready()
     
 @discord_client.event
