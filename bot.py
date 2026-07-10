@@ -163,6 +163,17 @@ async def on_message(message):
 
 
 # Start the web server, THEN start the bot
+# --- ASYNC RUNNER FOR BOTH BOTS ---
+async def start_both_bots():
+    TOKEN_CHAT = os.getenv("DISCORD_BOT_TOKEN")
+    TOKEN_DRAW = os.getenv("DISCORD_DRAW_TOKEN")  # Make sure to add this inside Render env settings!
+    
+    # Boots up both clients concurrently
+    await asyncio.gather(
+        client_chat.start(TOKEN_CHAT),
+        client_draw.start(TOKEN_DRAW)
+    )
+
 if __name__ == "__main__":
     keep_alive()
-    discord_client.run(DISCORD_TOKEN)
+    asyncio.run(start_both_bots())
