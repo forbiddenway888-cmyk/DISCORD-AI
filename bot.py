@@ -101,13 +101,20 @@ async def on_message(message):
             }
         ]
 
-    # 2. Add the user's new message to their history
-    chat_history[user_id].append({"role": "user", "content": message.content})
+   
+    # 2. Clean the bot's tag out so Groq doesn't read the raw ID numbers
+    clean_content = message.content.replace(f'<@{discord_client.user.id}>', '').strip()
+
+    if not clean_content:
+        await message.reply("Yo, what's up? Tag me and say something!")
+        return
+
+    # Add the clean text to their history
+    chat_history[user_id].append({"role": "user", "content": clean_content})
 
     # 3. Memory Wipe Check (Sliding Window)
     if len(chat_history[user_id]) > MAX_HISTORY:
-        chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
-
+        
     try:
         # 4. Send the ENTIRE history list to Groq
         response = await ai_client.chat.completions.create(
