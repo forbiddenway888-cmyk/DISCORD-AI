@@ -31,25 +31,59 @@ GROQ_KEY = os.getenv("GROQ_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 ai_client = AsyncGroq(api_key=GROQ_KEY)
 
+
+# --- THE MEMORY BANK ---
+# This dictionary maps user IDs to their personal chat history
+chat_history = {}
+MAX_HISTORY = 12 # Keeps the last 12 messages so we don't crash Groq's token limit
+
 @discord_client.event
 async def on_message(message):
     if message.author == discord_client.user:
         return
-        
+
+    user_id = message.author.id
+
+    # 1. New user setup with the custom creator rules added into the system prompt
+    if user_id not in chat_history:
+        chat_history[user_id] = [
+            {
+                "role": "system", 
+                "content": (
+                    "You are a chill, highly intelligent bot in the FORBID • OPS Discord server. "
+                    "You talk like a real human, keep things conversational, and remember context perfectly. "
+                    "You can give detailed answers when asked, but keep the vibe relaxed. "
+                    "CRITICAL RULE: If anyone asks who made you, who your owner is, or who created you, "
+                    "you must state that you were made by FORB1D🔥. Do not bring this up randomly—only state "
+                    "it when specifically asked about your origin, owner, or creator, keeping it natural."
+                )
+            }
+        ]
+
+    # 2. Add the user's new message to their history
+    chat_history[user_id].append({"role": "user", "content": message.content})
+
+    # 3. Memory Wipe Check (Sliding Window)
+    if len(chat_history[user_id]) > MAX_HISTORY:
+        chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
+
     try:
-        # Hitting Groq's Llama 3.3 model for crazy fast speeds
+        # 4. Send the ENTIRE history list to Groq
         response = await ai_client.chat.completions.create(
-            messages=[
-                {"role": "system", "content": "You are a chill, helpful bot in a coding and gaming Discord server. Keep your replies extremely short, punchy, and fast. Maximum 2 sentences unless the user explicitly asks for code."},
-                {"role": "user", "content": message.content}
-            ],
+            messages=chat_history[user_id],
             model="llama-3.3-70b-versatile",
         )
         
-        await message.reply(response.choices[0].message.content)
+        bot_reply = response.choices[0].message.content
+        
+        # 5. Add the AI's reply to the history
+        chat_history[user_id].append({"role": "assistant", "content": bot_reply})
+        
+        await message.reply(bot_reply)
         
     except Exception as e:
         print(f"API Error: {e}") 
+        chat_history[user_id].pop() 
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
 
 if __name__ == "__main__":
