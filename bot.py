@@ -113,8 +113,10 @@ async def on_message(message):
     chat_history[user_id].append({"role": "user", "content": clean_content})
 
     # 3. Memory Wipe Check (Sliding Window)
+    # 3. Memory Wipe Check (Sliding Window)
     if len(chat_history[user_id]) > MAX_HISTORY:
-        
+        chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
+
     try:
         # 4. Send the ENTIRE history list to Groq
         response = await ai_client.chat.completions.create(
