@@ -195,7 +195,7 @@ async def on_message(message):
             
             async with message.channel.typing():
                 safe_prompt = urllib.parse.quote(video_prompt)
-                video_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?enhance=true&model=flux&nologo=true&feed=true"
+                video_url = f"https://gen.pollinations.ai/video/{safe_prompt}"
                 
                 try:
                     async with aiohttp.ClientSession() as session:
