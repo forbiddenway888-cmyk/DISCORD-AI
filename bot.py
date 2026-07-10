@@ -6,6 +6,27 @@ from groq import AsyncGroq
 from flask import Flask
 from threading import Thread
 from discord.ext import tasks
+import aiohttp # Make sure this is at the very top!
+
+# ==========================================
+# FREE OCR IMAGE SCANNER
+# ==========================================
+async def scan_image_text(image_url):
+    api_url = "https://api.ocr.space/parse/imageurl"
+    params = {
+        "apikey": "helloworld",  # Free public test key
+        "url": image_url,
+        "language": "eng"
+    }
+    try:
+        async with aiohttp.ClientSession() as session:
+            async with session.get(api_url, params=params) as resp:
+                data = await resp.json()
+                if not data.get("IsErroredOnProcessing") and data.get("ParsedResults"):
+                    return data["ParsedResults"][0]["ParsedText"].strip()
+    except Exception as e:
+        print(f"OCR Error: {e}")
+    return ""
 
 # --- FLASK KEEP-ALIVE SERVER ---
 app = Flask('')
@@ -85,10 +106,21 @@ async def on_message(message):
                 image_url = att.url
                 break
 
-    # If there is no text AND no image uploaded, tell them to do something
+    # If there is no text AND no image uploaded
     if not raw_content and not image_url:
-        await message.reply("Yo, what's up? Tag me and say something, or upload an image for me to scan!")
+        await message.reply("Yo, what's up? Tag me and say something, or upload a screenshot for me to read!")
         return
+
+    # If they uploaded an image, run the OCR scanner
+    if image_url:
+        await message.add_reaction("👁️") # Reacts so you know it's reading the image
+        extracted_text = await scan_image_text(image_url)
+        
+        if extracted_text:
+            # Secretly inject the scanned text into the prompt so Groq knows what it says
+            raw_content += f"\n\n[SYSTEM NOTE: The user uploaded an image. The OCR scanner found this text inside it: '{extracted_text}']"
+        else:
+            raw_content += f"\n\n[SYSTEM NOTE: The user uploaded an image, but the OCR scanner couldn't find any readable words in it.]"
 
     user_id = message.author.id
 
@@ -110,41 +142,25 @@ async def on_message(message):
             }
         ]
 
-    # If they sent an image but didn't type a message, give the AI a default prompt
-    user_text = raw_content if raw_content else "Describe what is in this image for me bro."
+    # If they only sent an image but no text, give Groq a default command
+    if not raw_content.replace("[SYSTEM NOTE", "").strip():
+        raw_content = "Read the text from the image I just uploaded and tell me what it says."
 
-    # 2. Add the user's TEXT to history (We only save text to memory so it doesn't break future chat)
-    chat_history[user_id].append({"role": "user", "content": user_text})
+    # 2. Add the user's TEXT to history
+    chat_history[user_id].append({"role": "user", "content": raw_content})
 
     # 3. Memory Wipe Check
     if len(chat_history[user_id]) > MAX_HISTORY:
         chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
 
     try:
-        # Create a temporary list of messages to send to the API
-        api_messages = list(chat_history[user_id])
-        current_model = "meta-llama/llama-4-scout-17b-16e-instruct"
-
-        # If an image was uploaded, switch the brain to the Vision model!
-        if image_url:
-            # Modify the very last message in our temporary list so it includes the image file
-            api_messages[-1] = {
-                "role": "user",
-                "content": [
-                    {"type": "text", "text": user_text},
-                    {"type": "image_url", "image_url": {"url": image_url}}
-                ]
-            }
-            current_model = "llama-3.2-90b-vision-preview"
-
-        # 4. Send the message to Groq using whichever model it auto-selected
+        # 4. Send the message to Groq (Using your fast 70b text model!)
         response = await ai_client.chat.completions.create(
-            messages=api_messages,
-            model=current_model,
+            messages=chat_history[user_id],
+            model="llama-3.3-70b-versatile",
         )
         
         bot_reply = response.choices[0].message.content
-        
         # ==========================================
         # THE AI ROUTER (INTERCEPTING THE IMAGE)
         # ==========================================
