@@ -8,6 +8,7 @@ from threading import Thread
 from discord.ext import tasks
 import aiohttp # Make sure this is at the very top!
 import yt_dlp
+import random
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop the music from buffering AND loop it infinitely
@@ -61,6 +62,7 @@ def keep_alive():
 # --- DISCORD & GROQ SETUP ---
 intents = discord.Intents.default()
 intents.message_content = True
+intents.members = True # THIS ALLOWS THE BOT TO SEE NEW JOINS
 discord_client = discord.Client(intents=intents)
 
 # You only need these two keys! No image API key needed.
@@ -73,17 +75,38 @@ chat_history = {}
 MAX_HISTORY = 12 
 
 # --- 20-MINUTE AUTO-ANNOUNCEMENT ---
+# --- 20-MINUTE AUTO-MEME & CHAT STARTER ---
 @tasks.loop(minutes=20)
 async def everyone_reminder():
     for channel in discord_client.get_all_channels():
-        # Make sure this matches your exact channel name
         if channel.name == "♠️︱chat︱♠️" and isinstance(channel, discord.TextChannel):
             try:
-                await channel.send("@everyone wake up! Tag me to chat or ask me to create an image!")
-                print("🔥 Sent 20-minute wake-up reminder.")
+                # 1. Grab a random meme from Reddit via a free API
+                meme_url = ""
+                async with aiohttp.ClientSession() as session:
+                    async with session.get('https://meme-api.com/gimme') as resp:
+                        if resp.status == 200:
+                            meme_data = await resp.json()
+                            meme_url = meme_data.get('url', '')
+
+                # 2. Tell Groq to generate a random chat starter
+                prompt = "Generate a completely random, short, human-like chat message to wake up a dead Discord server. Make it a funny question, a hot take about gaming/coding, or just chill bro talk. Max 2 sentences. No cringe."
+                
+                response = await ai_client.chat.completions.create(
+                    messages=[{"role": "user", "content": prompt}],
+                    model="llama-3.3-70b-versatile"
+                )
+                msg = response.choices[0].message.content.strip()
+                
+                # Send the dynamic AI message and the meme
+                if meme_url:
+                    await channel.send(f"@everyone {msg}\n{meme_url}")
+                else:
+                    await channel.send(f"@everyone {msg}")
+                    
                 break 
             except Exception as e:
-                print(f"Failed to send reminder: {e}")
+                print(f"Failed to send meme/reminder: {e}")
 
 @everyone_reminder.before_loop
 async def before_reminder():
@@ -95,19 +118,44 @@ async def on_ready():
     if not everyone_reminder.is_running():
         everyone_reminder.start()
 
+
+@discord_client.event
+async def on_member_join(member):
+    # Sends the welcome to your main chat channel
+    channel = discord.utils.get(member.guild.text_channels, name="♠️︱chat︱♠️")
+    if channel:
+        prompt = f"A new user named {member.name} just joined our FORBID • OPS Discord server. Generate a short, super chill, 1-sentence welcome message for them. Ask them how they are or what they are up to. Sound like a real human bro, not a robot."
+        
+        try:
+            response = await ai_client.chat.completions.create(
+                messages=[{"role": "user", "content": prompt}],
+                model="llama-3.3-70b-versatile"
+            )
+            ai_welcome = response.choices[0].message.content.strip()
+            await channel.send(f"Yoo <@{member.id}>! {ai_welcome}")
+        except Exception as e:
+            print(f"Welcome error: {e}")
+
 # --- MESSAGE HANDLING ---
 # --- MESSAGE HANDLING ---
 @discord_client.event
 async def on_message(message):
-    if message.author == discord_client.user:
-        return
+    # Check if the bot was specifically tagged
+    is_pinged = discord_client.user.mentioned_in(message)
+    raw_content = message.content
 
-    # CRITICAL: Ignore the message unless the bot is specifically tagged
-    if not discord_client.user.mentioned_in(message):
-        return
-
-    # Clean the bot's tag out of the message text
-    raw_content = message.content.replace(f'<@{discord_client.user.id}>', '').strip()
+    # If the bot wasn't pinged, it will randomly "eavesdrop"
+    if not is_pinged:
+        # Only eavesdrop in the main chat, and only if someone asks a question (?)
+        if message.channel.name == "♠️︱chat︱♠️" and "?" in raw_content:
+            # Jump in 30% of the time so it feels natural, not annoying
+            if random.random() > 0.30:
+                return 
+        else:
+            return # Ignore normal messages without pings
+    else:
+        # If they DID ping the bot, clean the tag out of the message
+        raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
     
     # ==========================================
     # 🎧 THE MUSIC ENGINE ROUTER
