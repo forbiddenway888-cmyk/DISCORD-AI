@@ -339,7 +339,7 @@ async def on_message(message):
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
 
 
-elif "[JOIN]" in bot_reply_clean:
+        elif "[JOIN]" in bot_reply_clean:
             if message.author.voice:
                 channel = message.author.voice.channel
                 if not message.guild.voice_client:
