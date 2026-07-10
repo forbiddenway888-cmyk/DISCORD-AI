@@ -106,72 +106,69 @@ async def on_message(message):
         return
 
     # Clean the bot's tag out of the message text
-    # Clean the bot's tag out of the message text
+    raw_content = message.content.replace(f'<@{discord_client.user.id}>', '').strip()
+    
     # ==========================================
-# 🎧 THE MUSIC ENGINE ROUTER
-# ==========================================
-lower_content = raw_content.lower()
+    # 🎧 THE MUSIC ENGINE ROUTER
+    # ==========================================
+    lower_content = raw_content.lower()
 
-if lower_content.startswith("join me"):
-    if message.author.voice:
-        channel = message.author.voice.channel
-        # Connect to the voice channel
-        if not message.guild.voice_client:
-            await channel.connect()
-            await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
-        else:
-            await message.reply("Bro, I'm already in a channel!")
-    else:
-        await message.reply("You gotta join a Voice Channel first so I know where to go!")
-    return # Stops the message from going to the AI
-
-elif lower_content.startswith("leave"):
-    if message.guild.voice_client:
-        await message.guild.voice_client.disconnect()
-        await message.reply("Peace out ✌️ Left the VC.")
-    else:
-        await message.reply("I'm not even in a voice channel bruh.")
-    return # Stops the message from going to the AI
-
-elif lower_content.startswith("play "):
-    song_query = raw_content[5:].strip()
-    
-    # Check if user is in a VC
-    if not message.author.voice:
-        await message.reply("Join a VC first so I can play this for you!")
-        return
-        
-    # Join if not already in one
-    vc = message.guild.voice_client
-    if not vc:
-        vc = await message.author.voice.channel.connect()
-
-    await message.reply(f"🔍 Searching YouTube for: `{song_query}`...")
-    
-    try:
-        # Rip the audio URL using yt-dlp
-        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-            info = ydl.extract_info(f"ytsearch:{song_query}", download=False)
-            
-            if 'entries' in info and len(info['entries']) > 0:
-                best_url = info['entries'][0]['url']
-                title = info['entries'][0]['title']
-                
-                # Stop currently playing song if there is one
-                if vc.is_playing():
-                    vc.stop()
-                    
-                # Play the new audio stream
-                source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                vc.play(source)
-                await message.reply(f"🎶 **Now Playing:** {title}")
+    if lower_content.startswith("join me"):
+        if message.author.voice:
+            channel = message.author.voice.channel
+            if not message.guild.voice_client:
+                await channel.connect()
+                await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
             else:
-                await message.reply("Bro, I couldn't find that song.")
-    except Exception as e:
-        print(f"Music Error: {e}")
-        await message.reply(f"Music engine crashed: `{str(e)}`")
+                await message.reply("Bro, I'm already in a channel!")
+        else:
+            await message.reply("You gotta join a Voice Channel first so I know where to go!")
+        return 
+
+    elif lower_content.startswith("leave"):
+        if message.guild.voice_client:
+            await message.guild.voice_client.disconnect()
+            await message.reply("Peace out ✌️ Left the VC.")
+        else:
+            await message.reply("I'm not even in a voice channel bruh.")
+        return 
+
+    elif lower_content.startswith("play "):
+        song_query = raw_content[5:].strip()
         
-    return # Stops the message from going to the AI
+        if not message.author.voice:
+            await message.reply("Join a VC first so I can play this for you!")
+            return
+            
+        vc = message.guild.voice_client
+        if not vc:
+            vc = await message.author.voice.channel.connect()
+
+        await message.reply(f"🔍 Searching YouTube for: `{song_query}`...")
+        
+        try:
+            with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                info = ydl.extract_info(f"ytsearch:{song_query}", download=False)
+                if 'entries' in info and len(info['entries']) > 0:
+                    best_url = info['entries'][0]['url']
+                    title = info['entries'][0]['title']
+                    
+                    if vc.is_playing():
+                        vc.stop()
+                        
+                    source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                    vc.play(source)
+                    await message.reply(f"🎶 **Now Playing:** {title}")
+                else:
+                    await message.reply("Bro, I couldn't find that song.")
+        except Exception as e:
+            print(f"Music Error: {e}")
+            await message.reply(f"Music engine crashed: `{str(e)}`")
+        return 
+
+    # ==========================================
+    # IMAGE SCANNER (Checking for uploads)
+    # ==========================================
     
     # ==========================================
     # IMAGE SCANNER (Checking for uploads)
