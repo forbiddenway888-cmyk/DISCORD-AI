@@ -227,8 +227,15 @@ async def on_message(message):
                                 error_text = await resp.text()
                                 await message.reply(f"Bro, the API rejected it. Did you put your HF Token in? Error: `{error_text}`")
                 except Exception as e:
-                    print(f"Video Gen Error: {e}")
-                    await message.reply(f"Video generation failed: `{str(e)}`")
+                            print(f"Video Gen Error: {e}")
+                            await message.reply(f"Video generation failed: `{str(e)}`")
+        
+        else:
+            # No tags found, just reply with normal text chat
+            await message.reply(bot_reply)
+
+        # 5. Add Groq's reply to history so it remembers the chat context
+        chat_history[user_id].append({"role": "assistant", "content": bot_reply})
 # Start the bot
 if __name__ == "__main__":
     keep_alive()
