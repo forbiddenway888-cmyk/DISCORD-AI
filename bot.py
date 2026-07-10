@@ -37,21 +37,19 @@ async def on_ready():
     print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
 
 @discord_client.event
-    async def on_message(message):
-        if message.author == discord_client.user:
-            return
-            
-        try:
-            # Ripped out the typing indicator for pure speed
-            response = await ai_client.aio.models.generate_content(
-                model='gemini-3.5-flash',
-                contents=message.content,
-            )
-            await message.reply(response.text)
-        except Exception as e:
-            # THIS line is what we need to look at in the logs
-            print(f"API Error: {e}") 
-            await message.reply("Bro my API just choked, give me a sec.")
+async def on_message(message):
+    if message.author == discord_client.user:
+        return
+        
+    try:
+        response = await ai_client.aio.models.generate_content(
+            model='gemini-3.5-flash',
+            contents=message.content,
+        )
+        await message.reply(response.text)
+    except Exception as e:
+        print(f"API Error: {e}") 
+        await message.reply("Bro my API just choked, give me a sec.")
 
 # Start the web server, THEN start the bot
 if __name__ == "__main__":
