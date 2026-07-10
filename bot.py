@@ -3,6 +3,7 @@ import os
 from google import genai
 from flask import Flask
 from threading import Thread
+from google.genai import types
 
 # --- FLASK KEEP-ALIVE SERVER ---
 app = Flask('')
@@ -42,14 +43,18 @@ async def on_message(message):
         return
         
     try:
-        response = await ai_client.aio.models.generate_content(
-            model='gemini-3.5-flash',
-            contents=message.content,
-        )
-        await message.reply(response.text)
-    except Exception as e:
-        print(f"API Error: {e}") 
-        await message.reply("Bro my API just choked, give me a sec.")
+            response = await ai_client.aio.models.generate_content(
+                model='gemini-3.5-flash',
+                contents=message.content,
+                config=types.GenerateContentConfig(
+                    max_output_tokens=150,
+                    system_instruction="You are a chill, helpful bot in a coding and gaming Discord server. Keep your replies extremely short, punchy, and fast. Maximum 2 sentences unless the user explicitly asks for code."
+                )
+            )
+            await message.reply(response.text)
+        except Exception as e:
+            print(f"API Error: {e}") 
+            await message.reply("Bro my API just choked, give me a sec.")
 
 # Start the web server, THEN start the bot
 if __name__ == "__main__":
