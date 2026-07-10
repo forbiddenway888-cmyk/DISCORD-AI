@@ -34,27 +34,23 @@ DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 ai_client = genai.Client(api_key=GEMINI_KEY)
 
 @discord_client.event
-async def on_ready():
-    print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
-
-@discord_client.event
 async def on_message(message):
     if message.author == discord_client.user:
         return
         
     try:
-            response = await ai_client.aio.models.generate_content(
-                model='gemini-3.5-flash',
-                contents=message.content,
-                config=types.GenerateContentConfig(
-                    max_output_tokens=150,
-                    system_instruction="You are a chill, helpful bot in a coding and gaming Discord server. Keep your replies extremely short, punchy, and fast. Maximum 2 sentences unless the user explicitly asks for code."
-                )
+        response = await ai_client.aio.models.generate_content(
+            model='gemini-3.5-flash',
+            contents=message.content,
+            config=types.GenerateContentConfig(
+                max_output_tokens=150,
+                system_instruction="You are a chill, helpful bot in a coding and gaming Discord server. Keep your replies extremely short, punchy, and fast. Maximum 2 sentences unless the user explicitly asks for code."
             )
-            await message.reply(response.text)
-        except Exception as e:
-            print(f"API Error: {e}") 
-            await message.reply("Bro my API just choked, give me a sec.")
+        )
+        await message.reply(response.text)
+    except Exception as e:
+        print(f"API Error: {e}") 
+        await message.reply("Bro my API just choked, give me a sec.")
 
 # Start the web server, THEN start the bot
 if __name__ == "__main__":
