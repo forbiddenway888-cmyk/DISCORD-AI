@@ -42,6 +42,10 @@ async def on_message(message):
     if message.author == discord_client.user:
         return
 
+    # CRITICAL: Ignore the message unless the bot is specifically tagged
+    if not discord_client.user.mentioned_in(message):
+        return
+
     user_id = message.author.id
 
     # 1. New user setup with the custom creator rules added into the system prompt
@@ -86,6 +90,29 @@ async def on_message(message):
         chat_history[user_id].pop() 
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
 
+# --- 20-MINUTE AUTO-ANNOUNCEMENT ---
+async def everyone_reminder():
+    await discord_client.wait_until_ready()
+    while not discord_client.is_closed():
+        # Wait 20 minutes (20 minutes * 60 seconds)
+        await asyncio.sleep(1200) 
+        
+        # Look through all channels the bot can see
+        for channel in discord_client.get_all_channels():
+            # Replace "ai-chat" with the exact name of the text channel you want to target
+            if channel.name == "ai-chat" and isinstance(channel, discord.TextChannel):
+                try:
+                    await channel.send("@everyone wake up! Tag me if you want to chat or use the AI!")
+                    print("🔥 Sent 20-minute wake-up reminder.")
+                    break # Stop looking after finding the channel
+                except Exception as e:
+                    print(f"Failed to send reminder: {e}")
+
+# Start the web server, THEN start the bot
 if __name__ == "__main__":
     keep_alive()
+    
+    # Register the 20-minute reminder background task into Discord's event loop
+    discord_client.loop.create_task(everyone_reminder())
+    
     discord_client.run(DISCORD_TOKEN)
