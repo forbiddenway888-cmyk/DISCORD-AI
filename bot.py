@@ -1,5 +1,6 @@
 import discord
 import os
+import asyncio
 from google import genai
 from google.genai import types
 from flask import Flask
@@ -40,18 +41,32 @@ async def on_message(message):
         return
         
     try:
-        response = await ai_client.aio.models.generate_content(
-            model='gemini-3.5-flash',
-            contents=message.content,
-            config=types.GenerateContentConfig(
-                max_output_tokens=150,
-                system_instruction="You are a chill, helpful bot in a coding and gaming Discord server. Keep your replies extremely short, punchy, and fast. Maximum 2 sentences unless the user explicitly asks for code."
-            )
-        )
-        await message.reply(response.text)
+        # The bot will try up to 3 times before actually failing
+        for attempt in range(3):
+            try:
+                response = await ai_client.aio.models.generate_content(
+                    model='gemini-3.5-flash',
+                    contents=message.content,
+                    config=types.GenerateContentConfig(
+                        max_output_tokens=150,
+                        system_instruction="You are a chill, helpful bot in a coding and gaming Discord server. Keep your replies extremely short, punchy, and fast. Maximum 2 sentences unless the user explicitly asks for code."
+                    )
+                )
+                await message.reply(response.text)
+                break # Success! Break out of the loop so it doesn't repeat.
+            
+            except Exception as inner_error:
+                # If it's a 503 overload and we have attempts left, wait 2 seconds
+                if "503" in str(inner_error) and attempt < 2:
+                    await asyncio.sleep(2)
+                else:
+                    # If it's a different error or we are out of tries, throw it to the main exception
+                    raise inner_error
+                    
     except Exception as e:
-        # This forces the bot to send the EXACT error to Discord
-        await message.reply(f"Bro my API just choked! Here is the exact error: `{str(e)}`")
+        # It actually failed 3 times in a row
+        await message.reply(f"Bro Google's servers are completely fried right now. I'll be back in a bit.")
+        print(f"Final API Error: {e}")
 
 # Start the web server, THEN start the bot
 if __name__ == "__main__":
