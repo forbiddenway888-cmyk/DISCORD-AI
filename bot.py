@@ -1,9 +1,10 @@
 import discord
 import os
 from google import genai
+from google.genai import types
 from flask import Flask
 from threading import Thread
-from google.genai import types
+
 
 # --- FLASK KEEP-ALIVE SERVER ---
 app = Flask('')
