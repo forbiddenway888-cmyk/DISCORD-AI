@@ -2,3 +2,5 @@ discord.py
 flask
 groq
 pollinations.ai
+PyNaCl
+yt-dlp
