@@ -221,6 +221,15 @@ async def on_message(message):
             # No tags found, just reply with normal text chat
             await message.reply(bot_reply)
 
+        # 5. Add Groq's reply to history so it remembers the chat context
+        chat_history[user_id].append({"role": "assistant", "content": bot_reply})
+        
+    except Exception as e:
+        print(f"API Error: {e}") 
+        if user_id in chat_history and len(chat_history[user_id]) > 0:
+            chat_history[user_id].pop() 
+        await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
+
 # Start the bot
 if __name__ == "__main__":
     keep_alive()
