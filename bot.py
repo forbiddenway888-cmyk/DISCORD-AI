@@ -123,7 +123,7 @@ async def on_message(message):
     try:
         # Create a temporary list of messages to send to the API
         api_messages = list(chat_history[user_id])
-        current_model = "llama-3.3-70b-versatile"
+        current_model = "meta-llama/llama-4-scout-17b-16e-instruct"
 
         # If an image was uploaded, switch the brain to the Vision model!
         if image_url:
