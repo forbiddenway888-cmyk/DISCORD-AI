@@ -42,12 +42,13 @@ async def on_message(message):
         return
         
     try:
-        async with message.channel.typing():
-            response = ai_client.models.generate_content(
-                model='gemini-3.5-flash',
-                contents=message.content,
-            )
-        await message.reply(response.text)
+            async with message.channel.typing():
+                # Added 'await' and '.aio' right here to stop the bot from freezing
+                response = await ai_client.aio.models.generate_content(
+                    model='gemini-3.5-flash',
+                    contents=message.content,
+                )
+            await message.reply(response.text)
     except Exception as e:
         print(f"API Error: {e}")
         await message.reply("Bro my API just choked, give me a sec.")
