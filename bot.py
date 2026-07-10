@@ -194,18 +194,15 @@ async def on_message(message):
             video_prompt = bot_reply_clean.split("[VIDEO]")[1].strip()
             
             async with message.channel.typing():
-                
-                # --- HUGGING FACE FREE VIDEO HACK ---
-                # Drop your free token from huggingface.co/settings/tokens here
+                # --- HUGGING FACE FREE VIDEO ENGINE ---
                 HF_TOKEN = "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" 
                 
-                # Using DAMO's famous free text-to-video model
+                # Using DAMO's free text-to-video model
                 api_url = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b"
                 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
                 payload = {"inputs": video_prompt}
                 
                 try:
-                    # 3-minute timeout because videos take time to render!
                     timeout = aiohttp.ClientTimeout(total=180)
                     async with aiohttp.ClientSession(timeout=timeout) as session:
                         async with session.post(api_url, headers=headers, json=payload) as resp:
@@ -221,14 +218,13 @@ async def on_message(message):
                                 
                                 os.remove(temp_filename)
                             elif resp.status == 503:
-                                # Hugging Face puts free models to sleep. A 503 means it's waking up!
                                 await message.reply("Bro, the free video engine is booting up. Give it 30 seconds and try your prompt again!")
                             else:
                                 error_text = await resp.text()
-                                await message.reply(f"Bro, the API rejected it. Did you put your HF Token in? Error: `{error_text}`")
+                                await message.reply(f"Bro, the API rejected it. Error: `{error_text}`")
                 except Exception as e:
-                            print(f"Video Gen Error: {e}")
-                            await message.reply(f"Video generation failed: `{str(e)}`")
+                    print(f"Video Gen Error: {e}")
+                    await message.reply(f"Video generation failed: `{str(e)}`")
         
         else:
             # No tags found, just reply with normal text chat
@@ -236,6 +232,13 @@ async def on_message(message):
 
         # 5. Add Groq's reply to history so it remembers the chat context
         chat_history[user_id].append({"role": "assistant", "content": bot_reply})
+
+    except Exception as e:
+        print(f"API Error: {e}") 
+        if user_id in chat_history and len(chat_history[user_id]) > 0:
+            chat_history[user_id].pop() 
+        await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
+
 # Start the bot
 if __name__ == "__main__":
     keep_alive()
