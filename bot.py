@@ -218,7 +218,10 @@ async def on_message(message):
                     "CRITICAL RULE 2: You have an image AND video generator. "
                     "If the user asks for a picture, drawing, or photo, reply starting with exactly [DRAW] followed by a detailed prompt. "
                     "If the user asks for a video, animation, moving clip, or GIF, you MUST reply starting with exactly the word [VIDEO] followed by a highly descriptive action prompt of what happens in the video. "
-                    "Do not add any other conversational text. Just the tag and the prompt. "
+                    "CRITICAL RULE 3: YOU ARE A DJ. If the user asks you to join the voice channel (e.g. 'hop in', 'join'), reply with exactly [JOIN]. "
+                    "If they ask you to leave (e.g. 'get out', 'stop'), reply with exactly [LEAVE]. "
+                    "If they ask you to play a song (e.g. 'play mask off', 'put on some drake'), reply with exactly [PLAY] followed by the song name. "
+                    "Do not add any other conversational text when using these tags. Just the tag and the prompt. "
                     "Example: [VIDEO] A cinematic shot of a spaceship warping through a nebula. "
                     "If they just want to chat normally, reply with normal text and no tags."
                 )
@@ -334,6 +337,59 @@ async def on_message(message):
         if user_id in chat_history and len(chat_history[user_id]) > 0:
             chat_history[user_id].pop() 
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
+
+
+elif "[JOIN]" in bot_reply_clean:
+            if message.author.voice:
+                channel = message.author.voice.channel
+                if not message.guild.voice_client:
+                    await channel.connect()
+                    await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
+                else:
+                    await message.reply("Bro, I'm already in a channel!")
+            else:
+                await message.reply("You gotta join a Voice Channel first so I know where to go!")
+
+        elif "[LEAVE]" in bot_reply_clean:
+            if message.guild.voice_client:
+                await message.guild.voice_client.disconnect()
+                await message.reply("Peace out ✌️ Left the VC.")
+            else:
+                await message.reply("I'm not even in a voice channel bruh.")
+
+        elif "[PLAY]" in bot_reply_clean:
+            # Grabs the song name the AI figured out
+            song_query = bot_reply_clean.split("[PLAY]")[1].strip()
+            
+            if not message.author.voice:
+                await message.reply("Join a VC first so I can play this for you!")
+            else:
+                vc = message.guild.voice_client
+                if not vc:
+                    vc = await message.author.voice.channel.connect()
+
+                await message.reply(f"🔍 AI DJ searching for: `{song_query}`...")
+                
+                try:
+                    # Using scsearch (SoundCloud) to bypass YouTube bot blockers
+                    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                        info = ydl.extract_info(f"scsearch:{song_query}", download=False)
+                        
+                        if 'entries' in info and len(info['entries']) > 0:
+                            best_url = info['entries'][0]['url']
+                            title = info['entries'][0]['title']
+                            
+                            if vc.is_playing():
+                                vc.stop()
+                                
+                            source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                            vc.play(source)
+                            await message.reply(f"🎶 **Now Playing:** {title}")
+                        else:
+                            await message.reply("Bro, I couldn't find that song.")
+                except Exception as e:
+                    print(f"Music Error: {e}")
+                    await message.reply(f"Music engine crashed: `{str(e)}`")
 
 # Start the bot
 if __name__ == "__main__":
