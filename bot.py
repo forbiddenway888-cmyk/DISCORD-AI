@@ -82,21 +82,33 @@ async def on_message(message):
     # THE SMART BRAIN ROUTER
     # ==========================================
     # We make your message all lowercase just to check for keywords easily
+    # ==========================================
+    # THE SMART BRAIN ROUTER (UPGRADED)
+    # ==========================================
+    # We make your message all lowercase just to check for keywords easily
     check_content = raw_content.lower()
     
     # We set up our flags
     is_image_request = False
     image_prompt = ""
 
-    # If your message starts with "create image" or "draw"
-    if check_content.startswith("create image") or check_content.startswith("draw"):
+    # Look for image keywords ANYWHERE in the sentence
+    if "create image" in check_content:
         is_image_request = True
+        # This splits the sentence at the keyword and takes everything after it as the prompt
+        image_prompt = raw_content.lower().split("create image")[1].strip()
         
-        # This math just removes the trigger words so only your prompt is left
-        if check_content.startswith("create image"):
-            image_prompt = raw_content[12:].strip() # cuts out the first 12 letters
-        elif check_content.startswith("draw"):
-            image_prompt = raw_content[4:].strip()  # cuts out the first 4 letters
+    elif "draw" in check_content:
+        is_image_request = True
+        image_prompt = raw_content.lower().split("draw")[1].strip()
+        
+    elif "generate" in check_content:
+        is_image_request = True
+        image_prompt = raw_content.lower().split("generate")[1].strip()
+
+    # If the user didn't type anything after the trigger word, just use the original message
+    if is_image_request and not image_prompt:
+        image_prompt = raw_content
 
     # ==========================================
     # ROUTE A: SEND TO IMAGE API (Free / Unlimited)
