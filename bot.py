@@ -136,8 +136,14 @@ async def before_loops():
 @discord_client.event
 async def on_ready():
     print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
-    if not everyone_reminder.is_running():
-        everyone_reminder.start()
+    
+    # Start the meme dropper if it isn't running
+    if not meme_dropper_loop.is_running():
+        meme_dropper_loop.start()
+        
+    # Start the chat wake-upper if it isn't running
+    if not chat_wakeupper_loop.is_running():
+        chat_wakeupper_loop.start()
 
 
 @discord_client.event
