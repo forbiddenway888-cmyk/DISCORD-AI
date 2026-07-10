@@ -127,13 +127,7 @@ async def chat_wakeupper_loop():
             except Exception as e:
                 print(f"Wake-up loop error: {e}")
 
-# --- START THE NEW LOOPS WHEN BOT IS READY ---
-# --- START THE NEW LOOPS WHEN BOT IS READY ---
-@meme_dropper_loop.before_loop
-@chat_wakeupper_loop.before_loop
-@auto_image_dropper.before_loop
-async def before_loops():
-    await discord_client.wait_until_ready()
+
 
 # ==========================================
 # 🖼️ LOOP 3: THE AUTO-AESTHETIC IMAGE DROPPER
@@ -172,6 +166,13 @@ async def auto_image_dropper():
                 
             except Exception as e:
                 print(f"Auto-image loop error in {channel.name}: {e}")
+
+# --- START THE NEW LOOPS WHEN BOT IS READY ---
+@meme_dropper_loop.before_loop
+@chat_wakeupper_loop.before_loop
+@auto_image_dropper.before_loop
+async def before_loops():
+    await discord_client.wait_until_ready()
     
 @discord_client.event
 async def on_ready():
