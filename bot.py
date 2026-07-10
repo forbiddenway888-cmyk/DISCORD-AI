@@ -137,9 +137,12 @@ async def on_member_join(member):
             print(f"Welcome error: {e}")
 
 # --- MESSAGE HANDLING ---
-# --- MESSAGE HANDLING ---
 @discord_client.event
 async def on_message(message):
+    # THE TITANIUM LOCK: Ignore messages from ANY bot, including itself
+    if message.author.bot:
+        return
+
     # Check if the bot was specifically tagged
     is_pinged = discord_client.user.mentioned_in(message)
     raw_content = message.content
