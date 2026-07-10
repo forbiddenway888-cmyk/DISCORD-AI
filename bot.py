@@ -72,10 +72,22 @@ async def on_message(message):
         return
 
     # Clean the bot's tag out of the message text
+    # Clean the bot's tag out of the message text
     raw_content = message.content.replace(f'<@{discord_client.user.id}>', '').strip()
     
-    if not raw_content:
-        await message.reply("Yo, what's up? Tag me and say something!")
+    # ==========================================
+    # IMAGE SCANNER (Checking for uploads)
+    # ==========================================
+    image_url = None
+    if message.attachments:
+        for att in message.attachments:
+            if att.content_type and att.content_type.startswith('image/'):
+                image_url = att.url
+                break
+
+    # If there is no text AND no image uploaded, tell them to do something
+    if not raw_content and not image_url:
+        await message.reply("Yo, what's up? Tag me and say something, or upload an image for me to scan!")
         return
 
     user_id = message.author.id
@@ -98,18 +110,37 @@ async def on_message(message):
             }
         ]
 
-    # 2. Add the user's text to history
-    chat_history[user_id].append({"role": "user", "content": raw_content})
+    # If they sent an image but didn't type a message, give the AI a default prompt
+    user_text = raw_content if raw_content else "Describe what is in this image for me bro."
+
+    # 2. Add the user's TEXT to history (We only save text to memory so it doesn't break future chat)
+    chat_history[user_id].append({"role": "user", "content": user_text})
 
     # 3. Memory Wipe Check
     if len(chat_history[user_id]) > MAX_HISTORY:
         chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
 
     try:
-        # 4. Send the message to Groq
+        # Create a temporary list of messages to send to the API
+        api_messages = list(chat_history[user_id])
+        current_model = "llama-3.3-70b-versatile"
+
+        # If an image was uploaded, switch the brain to the Vision model!
+        if image_url:
+            # Modify the very last message in our temporary list so it includes the image file
+            api_messages[-1] = {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": user_text},
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                ]
+            }
+            current_model = "llama-3.2-90b-vision-preview"
+
+        # 4. Send the message to Groq using whichever model it auto-selected
         response = await ai_client.chat.completions.create(
-            messages=chat_history[user_id],
-            model="llama-3.3-70b-versatile",
+            messages=api_messages,
+            model=current_model,
         )
         
         bot_reply = response.choices[0].message.content
