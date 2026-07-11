@@ -277,12 +277,13 @@ async def on_member_remove(member):
         except Exception as e:
             print(f"Leave error: {e}")
 
-# --- MESSAGE HANDLING ---
+# --- GLOBAL ACTIVE USERS TRACKER ---
 active_users = {}
 
+# --- MESSAGE HANDLING ---
 @discord_client.event
 async def on_message(message):
-    # THE TITANIUM LOCK: Ignore messages from ANY bot
+    # THE TITANIUM LOCK: Ignore messages from ANY bot, including itself
     if message.author.bot:
         return
 
@@ -304,11 +305,12 @@ async def on_message(message):
         
         # If they pinged just to tell it to stop
         if is_stopping:
-            if user_id in active_users: del active_users[user_id]
+            if user_id in active_users: 
+                del active_users[user_id]
             await message.reply("Alright bro, stepping back. Tag me if you need me! ✌️")
             return
 
-    # 2. ARE THEY IN AN ONGOING CONVERSATION? (Within the last 5 minutes / 300 seconds)
+    # 2. ARE THEY IN AN ONGOING CONVERSATION? (Within the last 5 minutes)
     elif user_id in active_users and (current_time - active_users[user_id] < 300):
         if is_stopping:
             del active_users[user_id] # Drop the lock
@@ -338,17 +340,15 @@ async def on_message(message):
             else:
                 return 
         else:
-            return # Ignore unpinged messages in other channels
-    else:
-        # If they DID ping the bot, clean the tag out of the message
-        raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
-    
+            return 
+
     # ==========================================
     # 🎧 THE MUSIC ENGINE ROUTER
     # ==========================================
     lower_content = raw_content.lower()
 
     if lower_content.startswith("join me"):
+        
         if message.author.voice:
             channel = message.author.voice.channel
             if not message.guild.voice_client:
