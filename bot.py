@@ -139,8 +139,6 @@ async def chat_wakeupper_loop():
 # ==========================================
 # 🖼️ LOOP 3: THE AUTO-AESTHETIC IMAGE DROPPER (UNSPLASH)
 # ==========================================
-# 🔑 Put your Unsplash Access Key here!
-UNSPLASH_ACCESS_KEY = "YOUR_UNSPLASH_ACCESS_KEY_HERE"
 
 @tasks.loop(minutes=40)
 async def auto_image_dropper():
