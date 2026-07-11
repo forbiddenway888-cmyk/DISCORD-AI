@@ -9,6 +9,7 @@ from discord.ext import tasks
 import aiohttp # Make sure this is at the very top!
 import yt_dlp
 import random
+import time
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop the music from buffering AND loop it infinitely
@@ -73,7 +74,7 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY") # <--- Add this!
 
 # --- THE MEMORY BANK ---
 chat_history = {}
-MAX_HISTORY = 12 
+MAX_HISTORY = 6
 
 # --- 20-MINUTE AUTO-MEME & CHAT STARTER ---
 # ==========================================
@@ -117,7 +118,7 @@ async def chat_wakeupper_loop():
                 
                 response = await ai_client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
-                    model="llama-3.3-70b-versatile"
+                    model="llama-3.1-8b-instant"
                 )
                 chat_starter = response.choices[0].message.content.strip()
                 
@@ -235,7 +236,7 @@ async def on_member_join(member):
             async with channel.typing():
                 response = await ai_client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
-                    model="llama-3.3-70b-versatile"
+                    model="llama-3.1-8b-instant"
                 )
                 ai_welcome = response.choices[0].message.content.strip()
                 
@@ -267,7 +268,7 @@ async def on_member_remove(member):
                 
                 response = await ai_client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
-                    model="llama-3.3-70b-versatile"
+                    model="llama-3.1-8b-instant"
                 )
                 ai_goodbye = response.choices[0].message.content.strip()
                 
@@ -277,25 +278,67 @@ async def on_member_remove(member):
             print(f"Leave error: {e}")
 
 # --- MESSAGE HANDLING ---
+active_users = {}
+
 @discord_client.event
 async def on_message(message):
-    # THE TITANIUM LOCK: Ignore messages from ANY bot, including itself
+    # THE TITANIUM LOCK: Ignore messages from ANY bot
     if message.author.bot:
         return
 
-    # Check if the bot was specifically tagged
-    is_pinged = discord_client.user.mentioned_in(message)
+    user_id = message.author.id
     raw_content = message.content
+    lower_raw = raw_content.lower()
+    current_time = time.time()
+    
+    is_pinged = discord_client.user.mentioned_in(message)
+    
+    # Trigger words to make the bot back off
+    stop_triggers = ["stop", "shut up", "bye", "leave me alone", "nevermind", "nvm"]
+    is_stopping = any(word == lower_raw.strip() or word in lower_raw for word in stop_triggers)
 
-    # If the bot wasn't pinged, it will randomly "eavesdrop"
-    if not is_pinged:
-        # Only eavesdrop in the main chat, and only if someone asks a question (?)
-        if message.channel.name == "♠️︱chat︱♠️" and "?" in raw_content:
-            # Jump in 30% of the time so it feels natural, not annoying
-            if random.random() > 0.30:
+    # 1. DID THEY PING THE BOT?
+    if is_pinged:
+        raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
+        active_users[user_id] = current_time # Lock on to the user for 5 minutes
+        
+        # If they pinged just to tell it to stop
+        if is_stopping:
+            if user_id in active_users: del active_users[user_id]
+            await message.reply("Alright bro, stepping back. Tag me if you need me! ✌️")
+            return
+
+    # 2. ARE THEY IN AN ONGOING CONVERSATION? (Within the last 5 minutes / 300 seconds)
+    elif user_id in active_users and (current_time - active_users[user_id] < 300):
+        if is_stopping:
+            del active_users[user_id] # Drop the lock
+            await message.reply("Alright bro, I'm out. Talk later! ✌️")
+            return
+        
+        # They are still talking to the bot, so refresh the 5-minute timer!
+        active_users[user_id] = current_time 
+        
+    # 3. EAVESDROP LOGIC (Not pinged, not locked on)
+    else:
+        help_triggers = ["how do i", "can someone", "stuck on", "i need help", "how to", "what is"]
+        imagine_triggers = ["imagine", "wish i could see", "would be cool to see", "a picture of", "what if"]
+        
+        needs_help = any(word in lower_raw for word in help_triggers)
+        is_imagining = any(word in lower_raw for word in imagine_triggers)
+        is_question = "?" in lower_raw
+
+        if message.channel.name == "♠️︱chat︱♠️":
+            if is_imagining:
+                active_users[user_id] = current_time # Lock on and jump in!
+            elif needs_help or is_question:
+                if random.random() <= 0.50:
+                    active_users[user_id] = current_time # Lock on and jump in!
+                else:
+                    return 
+            else:
                 return 
         else:
-            return # Ignore normal messages without pings
+            return # Ignore unpinged messages in other channels
     else:
         # If they DID ping the bot, clean the tag out of the message
         raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
@@ -365,9 +408,6 @@ async def on_message(message):
             
         return # Stops the message from going to the AI 
 
-    # ==========================================
-    # IMAGE SCANNER (Checking for uploads)
-    # ==========================================
     
     # ==========================================
     # IMAGE SCANNER (Checking for uploads)
@@ -399,6 +439,7 @@ async def on_message(message):
 
 
     # 1. THE NEW SMART SYSTEM PROMPT (WITH VIDEO BRAIN)
+    # 1. THE NEW SMART SYSTEM PROMPT (WITH ACTIVE HELPER BRAIN)
     if user_id not in chat_history:
         chat_history[user_id] = [
             {
@@ -408,13 +449,14 @@ async def on_message(message):
                     "You keep things conversational and relaxed. "
                     "CRITICAL RULE 1: If anyone asks who made you, state you were made by FORB1D🔥. "
                     "CRITICAL RULE 2: You have an image AND video generator. "
-                    "If the user asks for a picture, drawing, or photo, reply starting with exactly [DRAW] followed by a detailed prompt. "
-                    "If the user asks for a video, animation, moving clip, or GIF, you MUST reply starting with exactly the word [VIDEO] followed by a highly descriptive action prompt of what happens in the video. "
-                    "CRITICAL RULE 3: YOU ARE A DJ. If the user asks you to join the voice channel (e.g. 'hop in', 'join'), reply with exactly [JOIN]. "
-                    "If they ask you to leave (e.g. 'get out', 'stop'), reply with exactly [LEAVE]. "
+                    "If the user asks for a picture, OR if they use the word 'imagine' or describe a cool visual, YOU MUST automatically generate it by replying with exactly [DRAW] followed by a detailed prompt. "
+                    "If a user is discussing a task or is stuck on something, step in and act as a chill, highly helpful assistant to solve their problem. "
+                    "If the user asks for a video, animation, or GIF, you MUST reply starting with exactly [VIDEO] followed by a descriptive action prompt. "
+                    "CRITICAL RULE 3: YOU ARE A DJ. If the user asks you to join the voice channel, reply with exactly [JOIN]. "
+                    "If they ask you to leave, reply with exactly [LEAVE]. "
                     "If they ask you to play a specific song, reply with exactly [PLAY] followed by the song name. "
-                    "CRITICAL RULE 4: MOODS & INFINITE MIXES. If the user asks for a vibe or mood (e.g., 'play sad songs', 'play hype music'), DO NOT pick a short song. You MUST search for a massive mix by appending '10 hour mix' to the query (e.g., [PLAY] 10 Hour Sad Bollywood Lofi Mix). "
-                    "Do not add any other conversational text when using these tags. Just the tag and the prompt. "
+                    "CRITICAL RULE 4: MOODS & INFINITE MIXES. If they ask for a vibe, search for a mix by appending '10 hour mix' to the query (e.g., [PLAY] 10 Hour Sad Lofi Mix). "
+                    "Do not add any other conversational text when using the tags [DRAW], [VIDEO], [JOIN], [LEAVE], or [PLAY]. Just the tag and the prompt. "
                     "If they just want to chat normally, reply with normal text and no tags."
                 )
             }
@@ -435,13 +477,11 @@ async def on_message(message):
         # 4. Send the message to Groq (Using your fast 70b text model!)
         response = await ai_client.chat.completions.create(
             messages=chat_history[user_id],
-            model="llama-3.3-70b-versatile",
+            model="llama-3.1-8b-instant",
         )
         
         bot_reply = response.choices[0].message.content
-        # ==========================================
-        # THE AI ROUTER (INTERCEPTING THE IMAGE)
-        # ==========================================
+        
         # ==========================================
         # THE AI ROUTER (UPGRADED & BULLETPROOF)
         # ==========================================
