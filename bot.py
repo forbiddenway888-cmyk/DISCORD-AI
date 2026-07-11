@@ -121,9 +121,14 @@ async def chat_wakeupper_loop():
                 )
                 chat_starter = response.choices[0].message.content.strip()
                 
-                # Send it natively without formatting so it looks like a real person typed it fast
-                await channel.send(chat_starter)
-                print("🔥 Sent the bored human chat reminder.")
+                # 🎲 25% chance to ping @everyone, 75% chance to just send it normally
+                if random.random() <= 0.25:
+                    await channel.send(f"@everyone {chat_starter}")
+                    print("🔥 Sent the bored human reminder (WITH PING).")
+                else:
+                    await channel.send(chat_starter)
+                    print("🔥 Sent the bored human reminder (NO PING).")
+                    
                 break 
             except Exception as e:
                 print(f"Wake-up loop error: {e}")
