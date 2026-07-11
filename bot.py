@@ -69,12 +69,12 @@ discord_client = discord.Client(intents=intents)
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 ai_client = AsyncGroq(api_key=GROQ_KEY)
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY") # <--- Add this!
 
 # --- THE MEMORY BANK ---
 chat_history = {}
 MAX_HISTORY = 12 
 
-# --- 20-MINUTE AUTO-ANNOUNCEMENT ---
 # --- 20-MINUTE AUTO-MEME & CHAT STARTER ---
 # ==========================================
 # 🎪 LOOP 1: THE 20-MINUTE MEME DROPPER
@@ -82,7 +82,7 @@ MAX_HISTORY = 12
 @tasks.loop(minutes=20)
 async def meme_dropper_loop():
     for channel in discord_client.get_all_channels():
-        if channel.name == "♠️︱chat︱♠️" and isinstance(channel, discord.TextChannel):
+        if channel.name == "♠️︱memes︱♠️" and isinstance(channel, discord.TextChannel):
             try:
                 # Rip a clean, random meme from Reddit via a free API
                 async with aiohttp.ClientSession() as session:
@@ -98,20 +98,21 @@ async def meme_dropper_loop():
             except Exception as e:
                 print(f"Meme loop error: {e}")
 
+
 # ==========================================
-# 🗣️ LOOP 2: THE 45-MINUTE CHAT WAKE-UPPER
+# 🗣️ LOOP 2: THE 1-HOUR "BORED/LONELY" CHAT WAKE-UP
 # ==========================================
-@tasks.loop(minutes=45)
+@tasks.loop(hours=1)
 async def chat_wakeupper_loop():
     for channel in discord_client.get_all_channels():
         if channel.name == "♠️︱chat︱♠️" and isinstance(channel, discord.TextChannel):
             try:
-                # Tell Groq to generate a completely random, casual chat starter
+                # Tell Groq to act like a bored human looking for someone to talk to
                 prompt = (
-                    "Generate a short, single-sentence chat message to wake up a quiet Discord server. "
-                    "Make it a hot take about gaming, scripting, coding, or just a random question. "
-                    "Talk like a chill teenager who is a member of the server. Do not sound like an AI. "
-                    "Max 15 words. No cringe hashtags or corporate talk."
+                    "Generate a short, single-sentence Discord message. "
+                    "Act like a chill teenager who is bored, lonely, and wants someone to talk to because the chat is totally dead. "
+                    "Examples of the vibe: 'chat is dead, anyone alive?' or 'bored af, someone entertain me' or 'is anyone even awake rn'. "
+                    "Talk like a real gamer bro. Do NOT sound like an AI or a bot. Max 15 words. No cringe hashtags or emojis."
                 )
                 
                 response = await ai_client.chat.completions.create(
@@ -120,134 +121,80 @@ async def chat_wakeupper_loop():
                 )
                 chat_starter = response.choices[0].message.content.strip()
                 
-                # Send the dynamic announcement text cleanly
-                await channel.send(f"@everyone {chat_starter}")
-                print("🔥 Sent a new unique server reminder.")
+                # Send it natively without formatting so it looks like a real person typed it fast
+                await channel.send(chat_starter)
+                print("🔥 Sent the bored human chat reminder.")
                 break 
             except Exception as e:
                 print(f"Wake-up loop error: {e}")
 
 
 
+
 # ==========================================
-# 🖼️ LOOP 3: THE AUTO-AESTHETIC IMAGE DROPPER
+# 🖼️ LOOP 3: THE AUTO-AESTHETIC IMAGE DROPPER (UNSPLASH)
 # ==========================================
+# 🔑 Put your Unsplash Access Key here!
+UNSPLASH_ACCESS_KEY = "YOUR_UNSPLASH_ACCESS_KEY_HERE"
+
 @tasks.loop(minutes=40)
 async def auto_image_dropper():
+    # Defines the search topics for Unsplash
     image_channels = {
-        "𓆩︱pfps︱𓆪": "cool edgy anime profile picture avatar, high quality, luxury",
-        "𓆩︱banners︱𓆪": "wide landscape banner background, aesthetic luxury, cyberpunk city, highly detailed",
-        "𓆩︱icons︱𓆪": "minimalist neon gaming server icon, sleek glowing logo, dark background, luxury"
+        "𓆩︱pfps︱𓆪": "portrait, cyberpunk, anime, aesthetic",
+        "𓆩︱banners︱𓆪": "landscape, neon, city, luxury, wallpaper",
+        "𓆩︱icons︱𓆪": "minimalist, logo, glowing, dark, abstract"
     }
-    
-    # Randomly shifts the aesthetic so it never gets boring
-    vibes = ["dark crimson", "neon blue", "purple synthwave", "monochrome black", "gold and black", "cyan glowing"]
 
     for channel in discord_client.get_all_channels():
         if channel.name in image_channels and isinstance(channel, discord.TextChannel):
             try:
-                random_seed = random.randint(1, 9999999)
-                current_vibe = random.choice(vibes)
-                unique_prompt = f"{image_channels[channel.name]}, {current_vibe} theme"
-                safe_prompt = urllib.parse.quote(unique_prompt)
+                search_query = image_channels[channel.name]
+                orientation = "landscape" if "banners" in channel.name else "squarish"
                 
-                # ⬇️ THE FIX: Added &seed= to the URL to FORCE a brand new image every time
-                if "banners" in channel.name:
-                    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=1024&height=400&nologo=true&seed={random_seed}"
-                else:
-                    image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=512&height=512&nologo=true&seed={random_seed}"
+                api_url = f"https://api.unsplash.com/photos/random"
+                params = {
+                    "client_id": UNSPLASH_ACCESS_KEY, # <--- It grabs the key from the environment here
+                    "query": search_query,
+                    "orientation": orientation
+                }
                 
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(image_url) as resp:
+                    async with session.get(api_url, params=params) as resp:
                         if resp.status == 200:
-                            image_data = await resp.read()
-                            temp_filename = f"ai_drop_{random_seed}.png"
-                            with open(temp_filename, "wb") as f:
-                                f.write(image_data)
+                            data = await resp.json()
+                            image_url = data["urls"]["regular"]
+                            photographer = data["user"]["name"]
+                            portfolio = data["user"]["links"]["html"]
                             
-                            file = discord.File(temp_filename, filename="drop.png")
-                            embed = discord.Embed(title="🔥 Fresh AI Drop", description=f"**Theme:** {current_vibe.title()}", color=discord.Color.dark_theme())
-                            embed.set_image(url="attachment://drop.png")
-                            embed.set_footer(text="Auto-generated by FORBID AI")
+                            # Build the Aesthetic Embed
+                            embed = discord.Embed(
+                                title="🔥 Fresh Drop", 
+                                description="Steal this for your profile.", 
+                                color=discord.Color.dark_theme()
+                            )
+                            embed.set_image(url=image_url)
+                            embed.set_footer(text=f"Shot by {photographer} via Unsplash")
                             
-                            await channel.send(embed=embed, file=file)
-                            os.remove(temp_filename)
+                            await channel.send(embed=embed)
+                        else:
+                            print(f"Unsplash API rejected the request for {channel.name}. Code: {resp.status}")
                 
+                # Wait 5 seconds before checking the next channel
                 await asyncio.sleep(5)
+                
             except Exception as e:
                 print(f"Auto-image loop error in {channel.name}: {e}")
 
 # ==========================================
 # 🎮 LOOP 4: THE 2-HOUR GAMING NEWS & TIPS DROP
 # ==========================================
-@tasks.loop(hours=2)
-async def gaming_news_loop():
-    # Now explicitly asks for 3 attractive bullet points
-    gaming_prompts = {
-        "𖤍︱blox-fruits︱𖤍": "Generate 3 hype bullet points (pointers) about Roblox Blox Fruits (e.g. rumors, fruit tips, or PvP strats). Use cool emojis. Talk like a chill teenage gamer bro. Make it look aesthetic and readable.",
-        "𖤍︱brookhaven︱𖤍": "Generate 3 cool bullet points (pointers) about Roblox Brookhaven (e.g. secret spots, update ideas, or roleplay scenarios). Use cool emojis. Talk like a chill teenage gamer bro. Make it aesthetic.",
-        "꩜︱owo-area︱꩜": "Generate 3 advanced bullet points (pointers) for the Discord OwO bot (hunting, battling, or zoo tips). Use cool emojis. Talk like a chill gamer bro. Make it aesthetic."
-    }
-    
-    # The image generator prompts for the games
-    gaming_images = {
-        "𖤍︱blox-fruits︱𖤍": "epic roblox blox fruits pirate sea anime style glowing devil fruit aesthetic",
-        "𖤍︱brookhaven︱𖤍": "roblox brookhaven luxury modern mansion neon sunset aesthetic",
-        "꩜︱owo-area︱꩜": "cute anime aesthetic neon glowing paw print logo dark background"
-    }
 
-    for channel in discord_client.get_all_channels():
-        if channel.name in gaming_prompts and isinstance(channel, discord.TextChannel):
-            try:
-                # 1. Ask Groq for the bullet point text
-                response = await ai_client.chat.completions.create(
-                    messages=[{"role": "user", "content": gaming_prompts[channel.name]}],
-                    model="llama-3.3-70b-versatile"
-                )
-                news_content = response.choices[0].message.content.strip()
-                
-                # Create a clean header
-                if "blox-fruits" in channel.name:
-                    header = "### 🏴‍☠️ **BLOX FRUITS INTEL** 🏴‍☠️\n"
-                elif "brookhaven" in channel.name:
-                    header = "### 🏡 **BROOKHAVEN DROP** 🏡\n"
-                else:
-                    header = "### 🐾 **OWO GRIND TIPS** 🐾\n"
-
-                final_text = f"{header}\n{news_content}"
-
-                # 2. Generate the custom background image for the game
-                random_seed = random.randint(1, 999999)
-                safe_prompt = urllib.parse.quote(gaming_images[channel.name])
-                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?width=800&height=400&nologo=true&seed={random_seed}"
-                
-                # 3. Download the image and send everything together
-                async with aiohttp.ClientSession() as session:
-                    async with session.get(image_url) as resp:
-                        if resp.status == 200:
-                            image_data = await resp.read()
-                            temp_filename = f"game_img_{random_seed}.png"
-                            with open(temp_filename, "wb") as f:
-                                f.write(image_data)
-                            
-                            file = discord.File(temp_filename, filename="game.png")
-                            
-                            # Send the text + image natively in one message
-                            await channel.send(content=final_text, file=file)
-                            
-                            os.remove(temp_filename)
-                
-                await asyncio.sleep(5)
-                
-            except Exception as e:
-                print(f"Gaming news loop error in {channel.name}: {e}")
-
-# --- START THE NEW LOOPS WHEN BOT IS READY ---
 # --- START ALL LOOPS WHEN BOT IS READY ---
 @meme_dropper_loop.before_loop
 @chat_wakeupper_loop.before_loop
 @auto_image_dropper.before_loop
-@gaming_news_loop.before_loop  # <--- Added this line!
+
 async def before_loops():
     await discord_client.wait_until_ready()
     
@@ -267,9 +214,7 @@ async def on_ready():
     if not auto_image_dropper.is_running():
         auto_image_dropper.start()
 
-# Start the gaming news dropper
-    if not gaming_news_loop.is_running():
-        gaming_news_loop.start()
+
 
 
 @discord_client.event
@@ -278,7 +223,7 @@ async def on_member_join(member):
     channel = discord.utils.get(member.guild.text_channels, name="♠️︱chat︱♠️")
     if channel:
         # ⏳ THE HUMAN DELAY: Wait 2 seconds before noticing they joined
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
         
         prompt = f"A new user named {member.name} just joined our FORBID • OPS Discord server. Generate a short, super chill, 1-sentence welcome message for them. Ask them how they are or what they are up to. Sound like a real human bro, not a robot."
         
@@ -302,7 +247,7 @@ async def on_member_remove(member):
     channel = discord.utils.get(member.guild.text_channels, name="♠️︱chat︱♠️")
     if channel:
         # ⏳ THE HUMAN DELAY: Wait 2 seconds before reacting
-        await asyncio.sleep(2)
+        await asyncio.sleep(5)
         
         prompt = (
             f"A user named {member.name} just left our FORBID • OPS Discord server. "
@@ -314,13 +259,16 @@ async def on_member_remove(member):
         try:
             # ⌨️ THE TYPING EFFECT: Shows "bot is typing..."
             async with channel.typing():
+                # ⏳ Force the typing status to stay on screen for 2 seconds
+                await asyncio.sleep(2)
+                
                 response = await ai_client.chat.completions.create(
                     messages=[{"role": "user", "content": prompt}],
                     model="llama-3.3-70b-versatile"
                 )
                 ai_goodbye = response.choices[0].message.content.strip()
                 
-            # Send the final message (Using bold for their name since we can't ping someone who left)
+            # Send the final message
             await channel.send(f"Damn, **{member.name}** just dipped. {ai_goodbye}")
         except Exception as e:
             print(f"Leave error: {e}")
@@ -446,7 +394,7 @@ async def on_message(message):
 
     user_id = message.author.id
 
-    # 1. THE NEW SMART SYSTEM PROMPT
+
     # 1. THE NEW SMART SYSTEM PROMPT (WITH VIDEO BRAIN)
     if user_id not in chat_history:
         chat_history[user_id] = [
@@ -503,16 +451,40 @@ async def on_message(message):
             
             async with message.channel.typing():
                 safe_prompt = urllib.parse.quote(image_prompt)
-                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}"
+                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
                 
-                display_title = f"🎨 {image_prompt}"
-                if len(display_title) > 256:
-                    display_title = display_title[:253] + "..."
-                
-                embed = discord.Embed(title=display_title, color=discord.Color.purple())
-                embed.set_image(url=image_url)
-                embed.set_footer(text="Generated by FORB1D🔥 via FORBID API")
-                await message.reply(embed=embed)
+                # ⬇️ THE UPGRADE: We check the API response BEFORE sending it to Discord
+                async with aiohttp.ClientSession() as session:
+                    async with session.get(image_url) as resp:
+                        if resp.status == 200:
+                            # It's a valid image! Download and send it natively.
+                            image_data = await resp.read()
+                            temp_filename = f"gen_image_{message.author.id}.png"
+                            
+                            with open(temp_filename, "wb") as f:
+                                f.write(image_data)
+                            
+                            display_title = f"🎨 {image_prompt}"
+                            if len(display_title) > 256:
+                                display_title = display_title[:253] + "..."
+                            
+                            file = discord.File(temp_filename, filename="art.png")
+                            embed = discord.Embed(title=display_title, color=discord.Color.purple())
+                            embed.set_image(url="attachment://art.png")
+                            embed.set_footer(text="Generated by FORB1D🔥 via FORBID API")
+                            
+                            await message.reply(embed=embed, file=file)
+                            os.remove(temp_filename)
+                            
+                        else:
+                            # If it's blocked (NSFW/Explicit), intercept it and show an error embed
+                            embed = discord.Embed(
+                                title="❌ AI Image Blocked",
+                                description=f"**Prompt:** `{image_prompt}`\n\n**Reason:** The generator rejected this. It might be explicit, NSFW, or against the safety filters.",
+                                color=discord.Color.red()
+                            )
+                            embed.set_footer(text="Keep it clean bro 💀")
+                            await message.reply(embed=embed)
 
         elif "[VIDEO]" in bot_reply_clean:
             # Splits the message at [VIDEO] and grabs everything after it
