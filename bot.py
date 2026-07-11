@@ -177,7 +177,7 @@ async def auto_image_dropper():
                                 color=discord.Color.dark_theme()
                             )
                             embed.set_image(url=image_url)
-                            embed.set_footer(text=f"Shot by {photographer} via Unsplash")
+                            embed.set_footer(text=f"Shot by {photographer} via Forbid API")
                             
                             await channel.send(embed=embed)
                         else:
