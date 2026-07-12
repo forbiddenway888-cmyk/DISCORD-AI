@@ -340,23 +340,13 @@ async def on_message(message):
             await message.reply("You gotta join a Voice Channel first so I know where to go!")
         return 
 
-    elif lower_content.startswith("leave"):
-        if message.guild.voice_client:
-            await message.guild.voice_client.disconnect()
-            await message.reply("Peace out ✌️ Left the VC.")
-        else:
-            await message.reply("I'm not even in a voice channel bruh.")
-        return 
-
     elif lower_content.startswith("play "):
         song_query = raw_content[5:].strip()
         
-        # Check if user is in a VC
         if not message.author.voice:
             await message.reply("Join a VC first so I can play this for you!")
             return
             
-        # Join if not already in one
         vc = message.guild.voice_client
         if not vc:
             vc = await message.author.voice.channel.connect()
@@ -378,20 +368,14 @@ async def on_message(message):
                     vc.stop()
                     
                 def repeat_song(error):
-                            if error:
-                                print(f"Audio Error: {error}")
-                            if vc.is_connected():
-                                # We package the next play command into a safe function
-                                def play_again():
-                                    if not vc.is_playing(): # Final safety check
-                                        new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                                        vc.play(new_source, after=repeat_song)
-                                
-                                # This tells Discord's brain to run it safely on the next loop tick!
-                                discord_client.loop.call_soon_threadsafe(play_again)
-
-                        source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                        vc.play(source, after=repeat_song)
+                    if error:
+                        print(f"Audio Error: {error}")
+                    if vc.is_connected():
+                        def play_again():
+                            if not vc.is_playing():
+                                new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                                vc.play(new_source, after=repeat_song)
+                        discord_client.loop.call_soon_threadsafe(play_again)
 
                 source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
                 vc.play(source, after=repeat_song)
@@ -402,7 +386,8 @@ async def on_message(message):
             print(f"Music Error: {e}")
             await message.reply(f"Music engine crashed: `{str(e)}`")
             
-        return # Stops the message from going to the AI
+        return
+
 
     
     # ==========================================
@@ -666,17 +651,11 @@ async def on_message(message):
                             if error:
                                 print(f"Audio Error: {error}")
                             if vc.is_connected():
-                                # We package the next play command into a safe function
                                 def play_again():
-                                    if not vc.is_playing(): # Final safety check
+                                    if not vc.is_playing():
                                         new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
                                         vc.play(new_source, after=repeat_song)
-                                
-                                # This tells Discord's brain to run it safely on the next loop tick!
                                 discord_client.loop.call_soon_threadsafe(play_again)
-
-                        source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                        vc.play(source, after=repeat_song)
 
                         source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
                         vc.play(source, after=repeat_song)
