@@ -364,32 +364,36 @@ async def on_message(message):
         await message.reply(f"🔍 Searching for: `{song_query}`...")
         
         try:
-                    # THE FIX: Run the heavy search in a background thread so the bot doesn't freeze!
-                    def search_audio():
-                        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                            return ydl.extract_info(f"scsearch:{song_query}", download=False)
-                    
-                    info = await asyncio.to_thread(search_audio)
+            def search_audio():
+                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                    return ydl.extract_info(f"scsearch:{song_query}", download=False)
+            
+            info = await asyncio.to_thread(search_audio)
+            
+            if 'entries' in info and len(info['entries']) > 0:
+                best_url = info['entries'][0]['url']
+                title = info['entries'][0]['title']
                 
-                if 'entries' in info and len(info['entries']) > 0:
-                    best_url = info['entries'][0]['url']
-                    title = info['entries'][0]['title']
+                if vc.is_playing():
+                    vc.stop()
                     
-                    # Stop currently playing song if there is one
-                    if vc.is_playing():
-                        vc.stop()
-                        
-                    # Play the new audio stream
-                    source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                    vc.play(source)
-                    await message.reply(f"🎶 **Now Playing:** {title}")
-                else:
-                    await message.reply("Bro, I couldn't find that song.")
+                def repeat_song(error):
+                    if error:
+                        print(f"Audio Error: {error}")
+                    if vc.is_connected():
+                        new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                        vc.play(new_source, after=repeat_song)
+
+                source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                vc.play(source, after=repeat_song)
+                await message.reply(f"🎶 **Now Playing (On Loop):** {title}")
+            else:
+                await message.reply("Bro, I couldn't find that song.")
         except Exception as e:
             print(f"Music Error: {e}")
             await message.reply(f"Music engine crashed: `{str(e)}`")
             
-        return # Stops the message from going to the AI 
+        return # Stops the message from going to the AI
 
     
     # ==========================================
@@ -636,37 +640,34 @@ async def on_message(message):
                 await message.reply(f"🔍 AI DJ searching for: `{song_query}`...")
                 
                 try:
-            # Background thread search to stop freezing
-            def search_audio():
-                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                    return ydl.extract_info(f"scsearch:{song_query}", download=False)
-            
-            info = await asyncio.to_thread(search_audio)
-            
-            if 'entries' in info and len(info['entries']) > 0:
-                best_url = info['entries'][0]['url']
-                title = info['entries'][0]['title']
-                
-                if vc.is_playing():
-                    vc.stop()
+                    def search_audio():
+                        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                            return ydl.extract_info(f"scsearch:{song_query}", download=False)
                     
-                # The Infinite Looper
-                def repeat_song(error):
-                    if error:
-                        print(f"Audio Error: {error}")
-                    if vc.is_connected():
-                        new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                        vc.play(new_source, after=repeat_song)
+                    info = await asyncio.to_thread(search_audio)
+                    
+                    if 'entries' in info and len(info['entries']) > 0:
+                        best_url = info['entries'][0]['url']
+                        title = info['entries'][0]['title']
+                        
+                        if vc.is_playing():
+                            vc.stop()
+                            
+                        def repeat_song(error):
+                            if error:
+                                print(f"Audio Error: {error}")
+                            if vc.is_connected():
+                                new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                                vc.play(new_source, after=repeat_song)
 
-                source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                vc.play(source, after=repeat_song)
-                
-                await message.reply(f"🎶 **Now Playing (On Loop):** {title}")
-            else:
-                await message.reply("Bro, I couldn't find that song.")
-        except Exception as e:
-            print(f"Music Error: {e}")
-            await message.reply(f"Music engine crashed: `{str(e)}`")
+                        source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                        vc.play(source, after=repeat_song)
+                        await message.reply(f"🎶 **Now Playing (On Loop):** {title}")
+                    else:
+                        await message.reply("Bro, I couldn't find that song.")
+                except Exception as e:
+                    print(f"Music Error: {e}")
+                    await message.reply(f"Music engine crashed: `{str(e)}`")
         
         else:
             # No tags found, just reply with normal text chat
