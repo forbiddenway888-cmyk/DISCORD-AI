@@ -278,8 +278,8 @@ async def on_member_remove(member):
             print(f"Leave error: {e}")
 
 # --- GLOBAL TRACKERS ---
-active_users = {}
-user_cooldowns = {} # Tracks when they last sent a message to stop spam
+# We removed active_users completely. Now we only track spam.
+user_cooldowns = {} 
 
 # --- MESSAGE HANDLING ---
 @discord_client.event
@@ -298,71 +298,20 @@ async def on_message(message):
     if user_id in user_cooldowns and (current_time - user_cooldowns[user_id] < 4):
         return 
 
+    # Check if they specifically pinged the bot or said its name
     is_pinged = discord_client.user.mentioned_in(message)
     is_soft_pinged = "forbid ai" in lower_raw
-    is_direct_interaction = is_pinged or is_soft_pinged
     
-    # Check if this is a channel where the bot is allowed to talk freely
-    channel_name = message.channel.name.lower()
-    is_allowed_channel = "chat" in channel_name or "︱ai︱" in channel_name or channel_name == "ai"
-
-    # Trigger words to make the bot back off
-    stop_triggers = ["stop", "shut up", "bye", "leave me alone", "nevermind", "nvm"]
-    is_stopping = any(word == lower_raw.strip() or word in lower_raw for word in stop_triggers)
-
-    # 1. DID THEY PING OR CALL THE BOT BY NAME? (Works in ALL channels)
-    if is_direct_interaction:
-        user_cooldowns[user_id] = current_time # Start their spam cooldown
-        
-        if is_pinged:
-            raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
-            
-        if is_stopping:
-            if user_id in active_users: 
-                del active_users[user_id]
-            await message.reply("Alright bro, stepping back. ✌️")
-            return
-            
-        # Only start a 5-minute memory lock if they are in the chat/ai channels
-        if is_allowed_channel:
-            active_users[user_id] = current_time 
-
-    # 2. ARE THEY IN AN ONGOING CONVERSATION? (Only allowed in Chat/AI channels)
-    elif is_allowed_channel and user_id in active_users and (current_time - active_users[user_id] < 300):
-        user_cooldowns[user_id] = current_time # Start their spam cooldown
-        
-        if is_stopping:
-            del active_users[user_id] # Drop the lock
-            await message.reply("Alright bro, I'm out. Talk later! ✌️")
-            return
-        
-        # Refresh the 5-minute timer
-        active_users[user_id] = current_time 
-        
-    # 3. EAVESDROP LOGIC (Only allowed in Chat/AI channels)
-    elif is_allowed_channel:
-        help_triggers = ["how do i", "can someone", "stuck on", "i need help", "how to", "what is"]
-        imagine_triggers = ["imagine", "wish i could see", "would be cool to see", "a picture of", "what if"]
-        
-        needs_help = any(word in lower_raw for word in help_triggers)
-        is_imagining = any(word in lower_raw for word in imagine_triggers)
-        is_question = "?" in lower_raw
-
-        if is_imagining:
-            user_cooldowns[user_id] = current_time
-            active_users[user_id] = current_time 
-        elif needs_help or is_question:
-            if random.random() <= 0.50:
-                user_cooldowns[user_id] = current_time
-                active_users[user_id] = current_time 
-            else:
-                return 
-        else:
-            return 
-            
-    # 4. NOT PINGED AND NOT IN ALLOWED CHANNEL -> IGNORE
-    else:
+    # 🛑 THE SHUTOFF VALVE: If they didn't ping it, IGNORE THE MESSAGE.
+    if not (is_pinged or is_soft_pinged):
         return
+
+    # If we made it here, they definitely pinged the bot!
+    user_cooldowns[user_id] = current_time # Start their spam cooldown
+    
+    # Clean the ping tag out of the message so the AI doesn't read its own ID
+    if is_pinged:
+        raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
 
     # ==========================================
     # 🎧 THE MUSIC ENGINE ROUTER
