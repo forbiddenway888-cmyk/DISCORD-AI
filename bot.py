@@ -536,7 +536,7 @@ async def on_message(message):
             async with message.channel.typing():
                 # Grab the token dynamically just to be super safe
                 hf_key = os.getenv("HF_TOKEN")
-                api_url = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b"
+                api_url = "https://router.huggingface.co/hf-inference/models/damo-vilab/text-to-video-ms-1.7b"
                 headers = {"Authorization": f"Bearer {hf_key}"}
                 payload = {"inputs": video_prompt}
                 
