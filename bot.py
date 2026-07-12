@@ -12,10 +12,10 @@ import random
 import time
 
 # These settings stop the music from buffering or crashing randomly
-# These settings stop the music from buffering AND loop it infinitely
+# These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -stream_loop -1',
-    'options': '-vn'
+    'options': '-vn -b:a 48k -ac 1 -ar 24000' # <--- FORCES LOW-BANDWIDTH STREAMING
 }
 YDL_OPTIONS = {
     'format': 'bestaudio/best',
@@ -73,9 +73,18 @@ UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN") # <--- ADD THIS RIGHT HERE
 ai_client = AsyncGroq(api_key=GROQ_KEY)
 
-# --- THE MEMORY BANK ---
+# --- THE MEMORY BANK (MEMORY-LEAK PROOF) ---
 chat_history = {}
 MAX_HISTORY = 6
+MAX_USERS_IN_MEMORY = 50 # Prevents Render from running out of RAM
+
+def cleanup_memory():
+    """Silently deletes old users if the RAM bank gets too full."""
+    if len(chat_history) > MAX_USERS_IN_MEMORY:
+        # Deletes the 10 oldest users to free up space
+        oldest_users = list(chat_history.keys())[:10]
+        for old_user in oldest_users:
+            del chat_history[old_user]
 
 # --- 20-MINUTE AUTO-MEME & CHAT STARTER ---
 # ==========================================
@@ -96,7 +105,6 @@ async def meme_dropper_loop():
                             if meme_url:
                                 await channel.send(meme_url)
                                 print("🔥 Successfully dropped a fresh meme.")
-                break 
             except Exception as e:
                 print(f"Meme loop error: {e}")
 
@@ -131,7 +139,7 @@ async def chat_wakeupper_loop():
                     await channel.send(chat_starter)
                     print("🔥 Sent the bored human reminder (NO PING).")
                     
-                break 
+                 
             except Exception as e:
                 print(f"Wake-up loop error: {e}")
 
@@ -356,9 +364,12 @@ async def on_message(message):
         await message.reply(f"🔍 Searching for: `{song_query}`...")
         
         try:
-            # We use scsearch (SoundCloud) to completely bypass YouTube's anti-bot wall!
-            with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                info = ydl.extract_info(f"scsearch:{song_query}", download=False)
+                    # THE FIX: Run the heavy search in a background thread so the bot doesn't freeze!
+                    def search_audio():
+                        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                            return ydl.extract_info(f"scsearch:{song_query}", download=False)
+                    
+                    info = await asyncio.to_thread(search_audio)
                 
                 if 'entries' in info and len(info['entries']) > 0:
                     best_url = info['entries'][0]['url']
@@ -468,28 +479,25 @@ async def on_message(message):
                 safe_prompt = urllib.parse.quote(image_prompt)
                 image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
                 
-                # ⬇️ THE UPGRADE: We check the API response BEFORE sending it to Discord
+                # ⬇️ 200 IQ UPGRADE: We check the API to make sure the prompt isn't blocked,
+                # BUT we deliberately DO NOT download the image data to save 100% bandwidth!
+                # Change session.get to session.head
                 async with aiohttp.ClientSession() as session:
-                    async with session.get(image_url) as resp:
+                    async with session.head(image_url) as resp: # <--- CHANGED TO .head()
                         if resp.status == 200:
-                            # It's a valid image! Download and send it natively.
-                            image_data = await resp.read()
-                            temp_filename = f"gen_image_{message.author.id}.png"
-                            
-                            with open(temp_filename, "wb") as f:
-                                f.write(image_data)
-                            
+                            # It's a valid, safe image! 
                             display_title = f"🎨 {image_prompt}"
                             if len(display_title) > 256:
                                 display_title = display_title[:253] + "..."
                             
-                            file = discord.File(temp_filename, filename="art.png")
                             embed = discord.Embed(title=display_title, color=discord.Color.purple())
-                            embed.set_image(url="attachment://art.png")
+                            
+                            # ZERO BANDWIDTH MAGIC: We just give Discord the URL. 
+                            # Discord's servers will download it, Render downloads 0 bytes.
+                            embed.set_image(url=image_url)
                             embed.set_footer(text="Generated by FORB1D🔥 via FORBID API")
                             
-                            await message.reply(embed=embed, file=file)
-                            os.remove(temp_filename)
+                            await message.reply(embed=embed)
                             
                         else:
                             # If it's blocked (NSFW/Explicit), intercept it and show an error embed
@@ -532,16 +540,16 @@ async def on_message(message):
             diamonds_left = user_diamonds[user_id]["diamonds"]
             await message.reply(f"💎 **Spending 1 Diamond...** ({diamonds_left}/5 remaining)\nGenerating your video, give me a sec! 🎥")
 
-            # --- THE 200 IQ LIVE-TRACKING GPU CAMPER (WANX 2.1) ---
+            # --- THE ZERO-BANDWIDTH GPU CAMPER (WANX 2.1) ---
             async with message.channel.typing():
-                # 1. Send an initial status message that we will edit live
                 status_msg = await message.reply("🔄 **Connecting to video server...**")
                 
                 try:
-                    # Keep the thread function to a SINGLE attempt
                     def hijack_web_demo_single_try():
                         from gradio_client import Client
-                        client = Client("liuyuyuil/Wanx2.1_Text_to_Video")
+                        
+                        # THE BYPASS: Setting download_files=False stops Render from downloading the heavy mp4!
+                        client = Client("liuyuyuil/Wanx2.1_Text_to_Video", download_files=False)
                         
                         try:
                             result = client.predict(video_prompt, api_name="/predict")
@@ -552,47 +560,44 @@ async def on_message(message):
                                 result = client.predict(video_prompt, fn_index=1)
                         
                         if result:
-                            if isinstance(result, list) or isinstance(result, tuple):
-                                return result[0]
-                            return result
+                            # Clean up the tuple if it's wrapped
+                            res = result[0] if isinstance(result, (list, tuple)) else result
+                            
+                            # Because we didn't download it locally, Gradio hands us an object with the remote URL
+                            if hasattr(res, "url"):
+                                return res.url
+                            elif isinstance(res, dict) and "url" in res:
+                                return res["url"]
+                            return str(res) # Fallback just in case
+                            
                         return None
 
-                    video_path = None
+                    video_url = None
                     
-                    # 2. Run the loop in the ASYNC context so we can update Discord live
                     for attempt in range(5):
                         await status_msg.edit(content=f"🚀 **Attempt {attempt + 1}/5:** Sending prompt to AI engine...")
                         
                         try:
-                            # Run the single try in the background thread
-                            video_path = await asyncio.to_thread(hijack_web_demo_single_try)
+                            video_url = await asyncio.to_thread(hijack_web_demo_single_try)
                             
-                            # If we successfully got a file, break out of the retry loop!
-                            if video_path:
+                            if video_url:
                                 break
                         except Exception as e:
                             print(f"Single try crash: {e}")
                             
-                        # If we reached here, the GPU was full or it failed. 
-                        # Update the Discord message live and wait 15 seconds.
-                        if attempt < 4: # Don't say waiting on the final attempt
+                        if attempt < 4:
                             await status_msg.edit(content=f"⚠️ **Attempt {attempt + 1}/5:** GPU queue is full. Retrying in 15 seconds... ⏱️")
                             await asyncio.sleep(15)
 
-                    # 3. If it failed all 5 times, trigger the refund
-                    if not video_path:
+                    if not video_url:
                         raise Exception("The GPU queue was maxed out after 5 attempts.")
                     
-                    if isinstance(video_path, dict) and "video" in video_path:
-                        video_path = video_path["video"]
+                    await status_msg.edit(content="✨ **Generation complete!**")
                     
-                    # 4. Tell the user it's uploading, then upload the file
-                    await status_msg.edit(content="✨ **Generation complete! Uploading your video...**")
+                    # THE UPLOAD FIX: We don't upload a file anymore. We just send the URL as text!
+                    # Discord will automatically embed the video player so it plays directly in chat.
+                    await message.reply(f"🎥 **{video_prompt}**\nGenerated by FORB1D🔥\n{video_url}")
                     
-                    file = discord.File(video_path, filename="forbid_wanx_video.mp4")
-                    await message.reply(f"🎥 **{video_prompt}**\nGenerated by FORB1D🔥", file=file)
-                    
-                    # Optional: Clean up the status message after success so chat stays clean
                     await status_msg.delete()
                     
                 except Exception as e:
@@ -631,8 +636,12 @@ async def on_message(message):
                 await message.reply(f"🔍 AI DJ searching for: `{song_query}`...")
                 
                 try:
-                    with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                        info = ydl.extract_info(f"scsearch:{song_query}", download=False)
+                    # THE FIX: Run the heavy search in a background thread so the bot doesn't freeze!
+                    def search_audio():
+                        with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                            return ydl.extract_info(f"scsearch:{song_query}", download=False)
+                    
+                    info = await asyncio.to_thread(search_audio)
                         
                         if 'entries' in info and len(info['entries']) > 0:
                             best_url = info['entries'][0]['url']
@@ -641,9 +650,20 @@ async def on_message(message):
                             if vc.is_playing():
                                 vc.stop()
                                 
+                            # We create a recursive function that calls itself when the audio ends
+                            def repeat_song(error):
+                                if error:
+                                    print(f"Audio Error: {error}")
+                                # Only repeat if the bot is still physically in the voice channel
+                                if vc.is_connected():
+                                    new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                                    vc.play(new_source, after=repeat_song)
+
+                            # Start the first playback and attach the looper
                             source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                            vc.play(source)
-                            await message.reply(f"🎶 **Now Playing:** {title}")
+                            vc.play(source, after=repeat_song)
+                            
+                            await message.reply(f"🎶 **Now Playing (On Loop):** {title}"))
                         else:
                             await message.reply("Bro, I couldn't find that song.")
                 except Exception as e:
