@@ -532,25 +532,35 @@ async def on_message(message):
             diamonds_left = user_diamonds[user_id]["diamonds"]
             await message.reply(f"💎 **Spending 1 Diamond...** ({diamonds_left}/5 remaining)\nGenerating your video, give me a sec! 🎥")
 
-            # --- THE 200 IQ GRADIO WEB-BACKDOOR ---
+            # --- THE 200 IQ GRADIO WEB-BACKDOOR (LTX VIDEO) ---
             async with message.channel.typing():
                 try:
                     # We run this in a background thread so it doesn't freeze your Discord bot
                     def hijack_web_demo():
                         from gradio_client import Client
                         
-                        # 1. Connect invisibly to a popular, free public video demo
-                        # (We are using Zeroscope, a fast text-to-video space)
-                        client = Client("multimodalart/zeroscope-v2-xl")
+                        # 1. Connect to a brand new, highly active cinematic video demo
+                        client = Client("Lightricks/ltx-video-distilled")
                         
-                        # 2. Silently "click" the generate button and pass your prompt
+                        # 2. Silently fill out their web form and click generate
                         result = client.predict(
-                            video_prompt, # Your prompt
-                            9.0,          # Inference steps (lower = faster generation)
-                            api_name="/predict"
+                            video_prompt,            # The prompt
+                            "blurry, bad quality",   # Negative prompt
+                            None,                    # Input Image (None for Text-to-Video)
+                            None,                    # Input Video (None)
+                            320,                     # Height (Lower = Faster)
+                            512,                     # Width
+                            "text-to-video",         # Mode
+                            2.0,                     # Duration in seconds
+                            9,                       # Frames to use
+                            42,                      # Seed
+                            True,                    # Randomize Seed
+                            3.0,                     # Guidance Scale
+                            True,                    # Improve Texture
+                            api_name="/generate"
                         )
-                        # 3. The website generates the video and saves it to a temporary path
-                        return result 
+                        # 3. The API returns a tuple (video_path, seed), so we grab the first item
+                        return result[0] 
 
                     # Await the hijacked video file path
                     video_path = await asyncio.to_thread(hijack_web_demo)
