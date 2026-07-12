@@ -71,7 +71,7 @@ GROQ_KEY = os.getenv("GROQ_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
 UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
 HF_TOKEN = os.getenv("HF_TOKEN") # <--- ADD THIS RIGHT HERE
-ai_client = AsyncGroq(api_key=GROQ_KEY)!
+ai_client = AsyncGroq(api_key=GROQ_KEY)
 
 # --- THE MEMORY BANK ---
 chat_history = {}
