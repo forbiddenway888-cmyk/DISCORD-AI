@@ -15,7 +15,7 @@ import time
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 96k -ac 2 -ar 48000' # <--- FORCES LOW-BANDWIDTH STREAMING
+    'options': '-vn -b:a 96k'
 }
 YDL_OPTIONS = {
     'format': 'bestaudio/best',
@@ -378,11 +378,20 @@ async def on_message(message):
                     vc.stop()
                     
                 def repeat_song(error):
-                    if error:
-                        print(f"Audio Error: {error}")
-                    if vc.is_connected():
-                        new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                        vc.play(new_source, after=repeat_song)
+                            if error:
+                                print(f"Audio Error: {error}")
+                            if vc.is_connected():
+                                # We package the next play command into a safe function
+                                def play_again():
+                                    if not vc.is_playing(): # Final safety check
+                                        new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                                        vc.play(new_source, after=repeat_song)
+                                
+                                # This tells Discord's brain to run it safely on the next loop tick!
+                                discord_client.loop.call_soon_threadsafe(play_again)
+
+                        source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                        vc.play(source, after=repeat_song)
 
                 source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
                 vc.play(source, after=repeat_song)
@@ -657,8 +666,17 @@ async def on_message(message):
                             if error:
                                 print(f"Audio Error: {error}")
                             if vc.is_connected():
-                                new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                                vc.play(new_source, after=repeat_song)
+                                # We package the next play command into a safe function
+                                def play_again():
+                                    if not vc.is_playing(): # Final safety check
+                                        new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                                        vc.play(new_source, after=repeat_song)
+                                
+                                # This tells Discord's brain to run it safely on the next loop tick!
+                                discord_client.loop.call_soon_threadsafe(play_again)
+
+                        source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                        vc.play(source, after=repeat_song)
 
                         source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
                         vc.play(source, after=repeat_song)
