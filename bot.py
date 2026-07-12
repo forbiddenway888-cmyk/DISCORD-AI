@@ -538,10 +538,8 @@ async def on_message(message):
                     def hijack_web_demo():
                         from gradio_client import Client
                         
-                        # 1. Connect to Alibaba's brand new WanX 2.1 Text-to-Video server
                         client = Client("liuyuyuil/Wanx2.1_Text_to_Video")
                         
-                        # 2. Brute-force the generation button (clicks every button until one accepts the prompt)
                         try:
                             result = client.predict(video_prompt, api_name="/predict")
                         except:
@@ -550,16 +548,16 @@ async def on_message(message):
                             except:
                                 result = client.predict(video_prompt, fn_index=1)
                         
-                        # 3. Clean up the result (Extracts the file path from the server's response)
                         if isinstance(result, list) or isinstance(result, tuple):
                             return result[0]
                         return result
 
-                    # Await the hijacked video file path
                     video_path = await asyncio.to_thread(hijack_web_demo)
                     
-                    # 4. Upload the ripped video back to Discord!
-                    # (Safeguard in case the server wraps the video in a dictionary)
+                    # --- THE FIX: CATCH THE EMPTY SERVER RESPONSE ---
+                    if not video_path:
+                        raise Exception("The server queue is full and returned an empty file (NoneType).")
+                    
                     if isinstance(video_path, dict) and "video" in video_path:
                         video_path = video_path["video"]
                         
@@ -568,7 +566,7 @@ async def on_message(message):
                     
                 except Exception as e:
                     print(f"Backdoor Crash: {e}")
-                    await message.reply(f"Bro, the public web demo is currently full or overloaded. Try again in a few minutes! Raw Error: `{str(e)}` (Diamond refunded 💎)")
+                    await message.reply(f"Bro, the free video GPUs are completely full right now. Try again in a few minutes! (Diamond refunded 💎)")
                     user_diamonds[user_id]["diamonds"] += 1
                     
         elif "[JOIN]" in bot_reply_clean:
