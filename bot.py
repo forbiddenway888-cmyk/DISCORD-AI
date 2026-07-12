@@ -15,7 +15,7 @@ import time
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
 FFMPEG_OPTIONS = {
     'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 48k -ac 1 -ar 24000' # <--- FORCES LOW-BANDWIDTH STREAMING
+    'options': '-vn -b:a 96k -ac 2 -ar 48000' # <--- FORCES LOW-BANDWIDTH STREAMING
 }
 YDL_OPTIONS = {
     'format': 'bestaudio/best',
