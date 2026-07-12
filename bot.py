@@ -66,11 +66,12 @@ intents.message_content = True
 intents.members = True # THIS ALLOWS THE BOT TO SEE NEW JOINS
 discord_client = discord.Client(intents=intents)
 
-# You only need these two keys! No image API key needed.
+# 🔐 ALL YOUR SECURE CLOUD KEYS
 GROQ_KEY = os.getenv("GROQ_API_KEY")
 DISCORD_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
-ai_client = AsyncGroq(api_key=GROQ_KEY)
-UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY") # <--- Add this!
+UNSPLASH_ACCESS_KEY = os.getenv("UNSPLASH_ACCESS_KEY")
+HF_TOKEN = os.getenv("HF_TOKEN") # <--- ADD THIS RIGHT HERE
+ai_client = AsyncGroq(api_key=GROQ_KEY)!
 
 # --- THE MEMORY BANK ---
 chat_history = {}
@@ -278,8 +279,8 @@ async def on_member_remove(member):
             print(f"Leave error: {e}")
 
 # --- GLOBAL TRACKERS ---
-# We removed active_users completely. Now we only track spam.
 user_cooldowns = {} 
+user_diamonds = {} # 💎 Tracks everyone's video currency and cooldowns
 
 # --- MESSAGE HANDLING ---
 @discord_client.event
@@ -501,12 +502,38 @@ async def on_message(message):
                             await message.reply(embed=embed)
 
         elif "[VIDEO]" in bot_reply_clean:
-            # Splits the message at [VIDEO] and grabs everything after it
             video_prompt = bot_reply_clean.split("[VIDEO]")[1].strip()
             
+            # --- 💎 DIAMOND SYSTEM LOGIC ---
+            user_id = message.author.id
+            current_time = time.time()
+            
+            # 1. If this is their first time ever making a video, give them 5 diamonds
+            if user_id not in user_diamonds:
+                user_diamonds[user_id] = {"diamonds": 5, "cooldown_end": 0}
+                
+            # 2. Check if their 3-hour wait is over so we can restock them
+            if current_time >= user_diamonds[user_id]["cooldown_end"] and user_diamonds[user_id]["diamonds"] == 0:
+                user_diamonds[user_id]["diamonds"] = 5
+                
+            # 3. If they are broke, block them and show the exact time left
+            if user_diamonds[user_id]["diamonds"] <= 0:
+                time_left = user_diamonds[user_id]["cooldown_end"] - current_time
+                hours = int(time_left // 3600)
+                minutes = int((time_left % 3600) // 60)
+                await message.reply(f"💎 **Out of Diamonds!** Bro, you used all 5 of your video generations. Your diamonds will restock in **{hours}h {minutes}m**.")
+                return # Stops the code here so it doesn't generate the video
+                
+            # 4. Deduct 1 diamond. If they hit 0, start the 3-hour timer.
+            user_diamonds[user_id]["diamonds"] -= 1
+            if user_diamonds[user_id]["diamonds"] == 0:
+                user_diamonds[user_id]["cooldown_end"] = current_time + (3 * 3600) # 3 hours in seconds
+                
+            diamonds_left = user_diamonds[user_id]["diamonds"]
+            await message.reply(f"💎 **Spending 1 Diamond...** ({diamonds_left}/5 remaining)\nGenerating your video, give me a sec! 🎥")
+
+            # --- THE ACTUAL VIDEO ENGINE ---
             async with message.channel.typing():
-                # --- HUGGING FACE FREE VIDEO ENGINE ---
-                HF_TOKEN = "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" 
                 api_url = "https://api-inference.huggingface.co/models/damo-vilab/text-to-video-ms-1.7b"
                 headers = {"Authorization": f"Bearer {HF_TOKEN}"}
                 payload = {"inputs": video_prompt}
@@ -533,20 +560,26 @@ async def on_message(message):
                                         
                                     elif resp.status == 503:
                                         await message.reply("Bro, the free video engine is booting up. Give it 30 seconds and try your prompt again!")
+                                        # Refund their diamond since the server was down!
+                                        user_diamonds[user_id]["diamonds"] += 1 
                                         break
                                     else:
                                         error_text = await resp.text()
                                         await message.reply(f"Bro, the API rejected it. Error: `{error_text}`")
+                                        # Refund their diamond since it failed
+                                        user_diamonds[user_id]["diamonds"] += 1 
                                         break
                         except aiohttp.ClientConnectorError as e:
                             print(f"Network glitch on attempt {attempt + 1}: {e}")
                             if attempt == max_retries - 1:
                                 await message.reply("Bro, my server's internet is lagging right now. Try again in a minute!")
+                                user_diamonds[user_id]["diamonds"] += 1 # Refund
                             await asyncio.sleep(2)
                             
                 except Exception as e:
                     print(f"Video Gen Error: {e}")
                     await message.reply(f"Video generation failed: `{str(e)}`")
+                    user_diamonds[user_id]["diamonds"] += 1 # Refund
 
         elif "[JOIN]" in bot_reply_clean:
             if message.author.voice:
