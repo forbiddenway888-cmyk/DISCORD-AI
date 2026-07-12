@@ -557,7 +557,7 @@ async def on_message(message):
                             True,                    # Randomize Seed
                             3.0,                     # Guidance Scale
                             True,                    # Improve Texture
-                            api_name="/generate"
+                            api_name="/predict"
                         )
                         # 3. The API returns a tuple (video_path, seed), so we grab the first item
                         return result[0] 
