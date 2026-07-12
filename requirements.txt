@@ -5,3 +5,4 @@ pollinations.ai
 PyNaCl
 yt-dlp
 davey
+gradio_client
