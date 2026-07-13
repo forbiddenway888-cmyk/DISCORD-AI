@@ -83,6 +83,7 @@ clan_mode = False
 clan_prefix = "мαƒια χ"
 
 # The Aesthetic Font Translator
+# The Aesthetic Font Translator
 NORMAL_FONT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 AESTHETIC_FONT = "αв¢∂єƒgнιʝкℓмησρqяѕтυνωχуzαв¢∂єƒgнιʝкℓмησρqяѕтυνωχуz"
 FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
@@ -90,31 +91,23 @@ FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
 clan_prefix = "мαƒια χ"
 
 def make_mafia_name(member):
-    """Takes exact display name, keeps numbers, strips emojis, and translates."""
     raw_name = member.display_name
     
-    # 1. If they already have the clan tag, chop it off so we don't duplicate it
+    # 1. Chop off the prefix if they already have it, so we can analyze the base name
     if raw_name.startswith(clan_prefix):
         raw_name = raw_name[len(clan_prefix):].strip()
     elif raw_name.lower().startswith("mafia x"):
         raw_name = raw_name[7:].strip()
         
-    # 2. Strip emojis/symbols, but KEEP letters, NUMBERS (0-9), and spaces
-    clean_name = re.sub(r'[^a-zA-Z0-9\s]', '', raw_name).strip()
+    # 2. 200 IQ TRANSLATION: This automatically changes A-Z to aesthetic, 
+    # but perfectly ignores numbers (0-9) and emojis (💥)!
+    styled_name = raw_name.translate(FONT_MAP)
     
-    # 3. Fallback in case their name was literally just a single emoji
-    if len(clean_name) == 0:
-        clean_name = "ghost"
-        
-    # 4. Translate the letters (Numbers will automatically stay normal!)
-    styled_name = clean_name.translate(FONT_MAP)
-    
-    # 5. Build the final string
+    # 3. Slap the prefix back on and clean up any extra spaces
     full_nick = f"{clan_prefix} {styled_name}"
     
-    # Clean up any double spaces and slice to Discord's 32-character limit
-    full_nick = " ".join(full_nick.split()) 
-    return full_nick[:32]
+    # Safely slice to Discord's 32-character limit
+    return " ".join(full_nick.split())[:32]
     
 def cleanup_memory():
     """Silently deletes old users if the RAM bank gets too full."""
