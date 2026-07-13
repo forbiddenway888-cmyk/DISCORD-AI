@@ -392,26 +392,21 @@ async def on_message(message):
             
             # If you say words like "on", "start", or "enable"
             # If you say words like "on", "start", or "enable"
+            # If you say words like "on", "start", or "enable"
             if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
                 clan_mode = True
-                status_msg = await message.reply(f"🛡️ **Clan Enforcer ON.** Downloading member list to aestheticize...")
+                status_msg = await message.reply(f"🛡️ **Clan Enforcer ON.** Ruthlessly overwriting entire server...")
                 
                 renamed_count = 0
                 failed_role_count = 0
-                already_perfect_count = 0
                 
                 # Force Discord to hand over the entire 100+ member list
                 async for member in message.guild.fetch_members(limit=None):
                     
                     # 1. Calculate exactly what their name SHOULD look like
                     perfect_name = make_mafia_name(member)
-                    
-                    # 2. If they are already perfect, skip them
-                    if member.display_name == perfect_name:
-                        already_perfect_count += 1
-                        continue
                         
-                    # 3. If they need changing, try to force it
+                    # 2. ZERO LAZY CHECKS. Just forcefully overwrite everyone's name.
                     try:
                         await member.edit(nick=perfect_name)
                         renamed_count += 1
@@ -424,10 +419,9 @@ async def on_message(message):
                         
                 # 📊 Print the final receipt to the chat
                 await status_msg.edit(content=f"✅ **Mass Rename Complete!**\n"
-                                              f"👑 Renamed: `{renamed_count}`\n"
+                                              f"👑 Forcefully Renamed: `{renamed_count}`\n"
                                               f"🛑 Skipped (Bot Role Too Low / Server Owner): `{failed_role_count}`\n"
-                                              f"✨ Already Perfect: `{already_perfect_count}`\n"
-                                              f"👥 Total Members Seen: `{renamed_count + failed_role_count + already_perfect_count}`")
+                                              f"👥 Total Members Crushed: `{renamed_count + failed_role_count}`")
                 return # Stop here
                 
             # If you say words like "off", "stop", or "disable"
