@@ -398,33 +398,43 @@ async def on_message(message):
         if "clan" in lower_raw or "mafia" in lower_raw:
             
             # If you say words like "on", "start", or "enable"
+            # If you say words like "on", "start", or "enable"
             if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
                 clan_mode = True
-                await message.reply(f"🛡️ **Clan Enforcer ON.** Downloading member list and renaming to {clan_prefix}...")
+                status_msg = await message.reply(f"🛡️ **Clan Enforcer ON.** Downloading member list to aestheticize...")
                 
                 renamed_count = 0
-                failed_count = 0
+                failed_role_count = 0
+                already_perfect_count = 0
                 
-                # ⬇️ THE BYPASS: Forces Discord to download all 100+ members right now
-                # ⬇️ THE BYPASS: Forces Discord to download all 100+ members right now
+                # Force Discord to hand over the entire 100+ member list
                 async for member in message.guild.fetch_members(limit=None):
                     
                     # 1. Calculate exactly what their name SHOULD look like
                     perfect_name = make_mafia_name(member)
                     
-                    # 2. If their current name isn't 100% perfect, forcefully fix it
-                    if member.display_name != perfect_name:
-                        try:
-                            await member.edit(nick=perfect_name)
-                            renamed_count += 1
-                        except discord.Forbidden:
-                            # Catch Server Owner / Higher roles
-                            failed_count += 1
-                        except Exception as e:
-                            print(f"❌ ERROR renaming {member.name}: {e}")
-                            failed_count += 1
-                            
-                await message.channel.send(f"✅ Successfully translated {renamed_count} members.\n⚠️ Skipped {failed_count} members (Server Owner / Higher Roles).")
+                    # 2. If they are already perfect, skip them
+                    if member.display_name == perfect_name:
+                        already_perfect_count += 1
+                        continue
+                        
+                    # 3. If they need changing, try to force it
+                    try:
+                        await member.edit(nick=perfect_name)
+                        renamed_count += 1
+                    except discord.Forbidden:
+                        # ❌ This triggers if the Bot's role is too low, or it's the Server Owner
+                        failed_role_count += 1
+                    except Exception as e:
+                        print(f"❌ ERROR renaming {member.name}: {e}")
+                        failed_role_count += 1
+                        
+                # 📊 Print the final receipt to the chat
+                await status_msg.edit(content=f"✅ **Mass Rename Complete!**\n"
+                                              f"👑 Renamed: `{renamed_count}`\n"
+                                              f"🛑 Skipped (Bot Role Too Low / Server Owner): `{failed_role_count}`\n"
+                                              f"✨ Already Perfect: `{already_perfect_count}`\n"
+                                              f"👥 Total Members Seen: `{renamed_count + failed_role_count + already_perfect_count}`")
                 return # Stop here
                 
             # If you say words like "off", "stop", or "disable"
