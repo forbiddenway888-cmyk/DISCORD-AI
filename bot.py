@@ -89,28 +89,35 @@ AESTHETIC_FONT = "αв¢∂єƒgнιʝкℓмησρqяѕтυνωχуzαв¢∂є
 FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
 
 def make_mafia_name(member):
-    """Smart-detects the user's real name, strips numbers, and translates it."""
+    """Takes exact display name, keeps numbers, strips emojis, and translates."""
     
-    # 1. Strip all numbers, emojis, and symbols from BOTH names. Keep only letters and spaces.
-    clean_display = re.sub(r'[^a-zA-Z\s]', '', member.display_name).strip()
-    clean_user = re.sub(r'[^a-zA-Z\s]', '', member.name).strip()
+    # 1. Grab ONLY their display name
+    raw_name = member.display_name
     
-    # 2. Pick the best name (Prefer display name. If it's empty, use their username)
-    best_name = clean_display if len(clean_display) >= 2 else clean_user
-    
-    # 3. Fallback just in case someone's name was literally just "123"
-    if len(best_name) < 2:
-        best_name = "ghost"
+    # 2. If they already have the clan tag, chop it off so we don't duplicate it
+    if raw_name.startswith(clan_prefix):
+        raw_name = raw_name[len(clan_prefix):]
+    elif raw_name.lower().startswith("mafia x"):
+        raw_name = raw_name[7:]
         
-    # 4. Grab just the FIRST word (so "Dark Sniper" becomes "Dark")
-    core_name = best_name.split()[0].lower()
+    # 3. Strip emojis and weird symbols, but KEEP letters, NUMBERS (0-9), and spaces
+    clean_name = re.sub(r'[^a-zA-Z0-9\s]', '', raw_name).strip()
     
-    # 5. Translate it into the aesthetic font
-    styled_name = core_name.translate(FONT_MAP)
+    # 4. Fallback in case their name was literally just a single emoji
+    if len(clean_name) == 0:
+        clean_name = "ghost"
+        
+    # 5. Translate the letters (Numbers will automatically stay perfectly normal!)
+    styled_name = clean_name.translate(FONT_MAP)
     
-    # 6. Build the final Discord-safe string
+    # 6. Build the final string and safely slice to Discord's 32-character limit
     full_nick = f"{clan_prefix} {styled_name}"
+    
+    # Clean up double spaces just in case
+    full_nick = " ".join(full_nick.split()) 
+    
     return full_nick[:32]
+    
 def cleanup_memory():
     """Silently deletes old users if the RAM bank gets too full."""
     if len(chat_history) > MAX_USERS_IN_MEMORY:
