@@ -399,15 +399,19 @@ async def on_message(message):
                 failed_count = 0
                 
                 # ⬇️ THE BYPASS: Forces Discord to download all 100+ members right now
+                # ⬇️ THE BYPASS: Forces Discord to download all 100+ members right now
                 async for member in message.guild.fetch_members(limit=None):
                     
-                    if not member.display_name.startswith(clan_prefix):
+                    # 1. Calculate exactly what their name SHOULD look like
+                    perfect_name = make_mafia_name(member)
+                    
+                    # 2. If their current name isn't 100% perfect, forcefully fix it
+                    if member.display_name != perfect_name:
                         try:
-                            # Try to aesthetic-translate and rename them
-                            await member.edit(nick=make_mafia_name(member))
+                            await member.edit(nick=perfect_name)
                             renamed_count += 1
                         except discord.Forbidden:
-                            # This catches the "Server Owner" and "Role Hierarchy" blocks
+                            # Catch Server Owner / Higher roles
                             failed_count += 1
                         except Exception as e:
                             print(f"❌ ERROR renaming {member.name}: {e}")
