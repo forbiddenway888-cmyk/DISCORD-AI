@@ -77,7 +77,7 @@ ai_client = AsyncGroq(api_key=GROQ_KEY)
 chat_history = {}
 MAX_HISTORY = 6
 MAX_USERS_IN_MEMORY = 50 # Prevents Render from running out of RAM
-ADMIN_ID = 123456789012345678  # 👑 PASTE YOUR DISCORD ID HERE
+ADMIN_ID = 1457960499798081549  # 👑 PASTE YOUR DISCORD ID HERE
 clan_mode = False              # Tracks if the enforcer is ON or OFF
 clan_prefix = "мαƒια χ"        # The template prefix
 
@@ -318,32 +318,67 @@ async def on_message(message):
     # THE TITANIUM LOCK: Ignore messages from ANY bot
     if message.author.bot:
         return
-        global clan_mode
+
+    user_id = message.author.id
+    raw_content = message.content
+    lower_raw = raw_content.lower()
+    current_time = time.time()
     
-    # 👑 THE ADMIN OVERRIDE COMMANDS
-    if message.author.id == ADMIN_ID:
-        if raw_content.lower() == "!clan on":
-            clan_mode = True
-            await message.reply("🛡️ **Clan Enforcer ON.** Initiating mass server rename...")
+    global clan_mode
+    
+    # ==========================================
+    # 📸 1. THE MEDIA-ONLY CHANNEL FILTER
+    # ==========================================
+    # List the exact names (or partial names) of your media channels here
+    MEDIA_CHANNELS = ["media", "memes", "clips", "art", "screenshots", "pfps", "banners"] 
+
+    # Check if they are typing in one of the media channels
+    if any(media_name in message.channel.name.lower() for media_name in MEDIA_CHANNELS):
+        # Does the message have a file attached? (Image, Video, Audio)
+        has_attachment = len(message.attachments) > 0
+        
+        # Does the message have a link? (Like a Tenor GIF or YouTube link)
+        has_link = "http://" in lower_raw or "https://" in lower_raw
+        
+        # If they are just chatting with no files or links, NUKE IT.
+        if not has_attachment and not has_link:
+            try:
+                await message.delete()
+                # Sends a ghost warning that auto-deletes itself after 3 seconds
+                warning = await message.channel.send(f"⚠️ <@{user_id}>, this channel is for media only. No chatting!")
+                await warning.delete(delay=3)
+            except Exception:
+                pass
+            return # Stops the bot from processing this text any further
+
+    # ==========================================
+    # 👑 2. THE HUMAN-LANGUAGE ADMIN OVERRIDE
+    # ==========================================
+    if user_id == ADMIN_ID:
+        # Auto-detect if you are talking about the clan/mafia mode
+        if "clan" in lower_raw or "mafia" in lower_raw:
             
-            # Loop through everyone in the server and rename them
-            renamed_count = 0
-            for member in message.guild.members:
-                if not member.display_name.lower().startswith(clan_prefix):
-                    try:
-                        # Uses their base username to build the template
-                        await member.edit(nick=f"{clan_prefix} {member.name}")
-                        renamed_count += 1
-                    except Exception:
-                        pass # Ignores errors for the Server Owner or Admins higher than the bot
-                        
-            await message.channel.send(f"✅ Successfully renamed {renamed_count} members.")
-            return # Stops the message here so the AI doesn't reply
-            
-        elif raw_content.lower() == "!clan off":
-            clan_mode = False
-            await message.reply("🛡️ **Clan Enforcer OFF.** Users can now change their names.")
-            return
+            # If you say words like "on", "start", or "enable"
+            if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
+                clan_mode = True
+                await message.reply("🛡️ **Clan Enforcer ON.** Initiating mass server rename, Boss...")
+                
+                renamed_count = 0
+                for member in message.guild.members:
+                    if not member.display_name.lower().startswith(clan_prefix):
+                        try:
+                            await member.edit(nick=f"{clan_prefix} {member.name}")
+                            renamed_count += 1
+                        except Exception:
+                            pass
+                await message.channel.send(f"✅ Successfully renamed {renamed_count} members.")
+                return # Stop here
+                
+            # If you say words like "off", "stop", or "disable"
+            elif any(word in lower_raw for word in ["off", "stop", "disable", "remove"]):
+                clan_mode = False
+                await message.reply("🛡️ **Clan Enforcer OFF.** The mafia rests. Users can change names again.")
+                return # Stop here
 
     user_id = message.author.id
     raw_content = message.content
