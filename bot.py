@@ -91,19 +91,20 @@ FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
 clan_prefix = "мαƒια χ"
 
 def make_mafia_name(member):
-    raw_name = member.display_name
+    # 1. THE FIX: Completely ignore the server nickname. 
+    # Grab their pure, original Global Display Name (or username as fallback).
+    raw_name = member.global_name or member.name
     
-    # 1. Chop off the prefix if they already have it, so we can analyze the base name
+    # 2. Just in case they actually put the prefix in their global profile, chop it off.
     if raw_name.startswith(clan_prefix):
         raw_name = raw_name[len(clan_prefix):].strip()
     elif raw_name.lower().startswith("mafia x"):
         raw_name = raw_name[7:].strip()
         
-    # 2. 200 IQ TRANSLATION: This automatically changes A-Z to aesthetic, 
-    # but perfectly ignores numbers (0-9) and emojis (💥)!
+    # 3. Translate the letters (Numbers and emojis stay perfectly normal!)
     styled_name = raw_name.translate(FONT_MAP)
     
-    # 3. Slap the prefix back on and clean up any extra spaces
+    # 4. Slap the prefix back on and clean up any extra spaces
     full_nick = f"{clan_prefix} {styled_name}"
     
     # Safely slice to Discord's 32-character limit
