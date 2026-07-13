@@ -77,6 +77,9 @@ ai_client = AsyncGroq(api_key=GROQ_KEY)
 chat_history = {}
 MAX_HISTORY = 6
 MAX_USERS_IN_MEMORY = 50 # Prevents Render from running out of RAM
+ADMIN_ID = 123456789012345678  # 👑 PASTE YOUR DISCORD ID HERE
+clan_mode = False              # Tracks if the enforcer is ON or OFF
+clan_prefix = "mafia x"        # The template prefix
 
 def cleanup_memory():
     """Silently deletes old users if the RAM bank gets too full."""
@@ -232,6 +235,12 @@ async def on_ready():
 
 @discord_client.event
 async def on_member_join(member):
+    global clan_mode
+    if clan_mode:
+        try:
+            await member.edit(nick=f"{clan_prefix} {member.name}")
+        except Exception:
+            pass
     # Sends the welcome to your main chat channel
     channel = discord.utils.get(member.guild.text_channels, name="♠️︱chat︱♠️")
     if channel:
@@ -286,6 +295,19 @@ async def on_member_remove(member):
         except Exception as e:
             print(f"Leave error: {e}")
 
+    @discord_client.event
+async def on_member_update(before, after):
+    global clan_mode
+    # If Clan Mode is active, and they tried to change their nickname
+    if clan_mode:
+        # Check to prevent an infinite loop of the bot renaming them over and over
+        if not after.display_name.lower().startswith(clan_prefix):
+            try:
+                await after.edit(nick=f"{clan_prefix} {after.name}")
+                print(f"🛡️ Blocked {after.name} from changing their clan tag.")
+            except Exception:
+                pass
+
 # --- GLOBAL TRACKERS ---
 user_cooldowns = {} 
 user_diamonds = {} # 💎 Tracks everyone's video currency and cooldowns
@@ -296,6 +318,32 @@ async def on_message(message):
     # THE TITANIUM LOCK: Ignore messages from ANY bot
     if message.author.bot:
         return
+        global clan_mode
+    
+    # 👑 THE ADMIN OVERRIDE COMMANDS
+    if message.author.id == ADMIN_ID:
+        if raw_content.lower() == "!clan on":
+            clan_mode = True
+            await message.reply("🛡️ **Clan Enforcer ON.** Initiating mass server rename...")
+            
+            # Loop through everyone in the server and rename them
+            renamed_count = 0
+            for member in message.guild.members:
+                if not member.display_name.lower().startswith(clan_prefix):
+                    try:
+                        # Uses their base username to build the template
+                        await member.edit(nick=f"{clan_prefix} {member.name}")
+                        renamed_count += 1
+                    except Exception:
+                        pass # Ignores errors for the Server Owner or Admins higher than the bot
+                        
+            await message.channel.send(f"✅ Successfully renamed {renamed_count} members.")
+            return # Stops the message here so the AI doesn't reply
+            
+        elif raw_content.lower() == "!clan off":
+            clan_mode = False
+            await message.reply("🛡️ **Clan Enforcer OFF.** Users can now change their names.")
+            return
 
     user_id = message.author.id
     raw_content = message.content
