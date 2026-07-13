@@ -391,16 +391,16 @@ async def on_message(message):
         if "clan" in lower_raw or "mafia" in lower_raw:
             
             # If you say words like "on", "start", or "enable"
-            # If you say words like "on", "start", or "enable"
             if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
                 clan_mode = True
-                await message.reply(f"🛡️ **Clan Enforcer ON.** Initiating mass server rename to {clan_prefix}...")
+                await message.reply(f"🛡️ **Clan Enforcer ON.** Downloading member list and renaming to {clan_prefix}...")
                 
                 renamed_count = 0
                 failed_count = 0
                 
-                # We use the standard cache. Since you enabled intents, this works perfectly.
-                for member in message.guild.members:
+                # ⬇️ THE BYPASS: Forces Discord to download all 100+ members right now
+                async for member in message.guild.fetch_members(limit=None):
+                    
                     if not member.display_name.startswith(clan_prefix):
                         try:
                             # Try to aesthetic-translate and rename them
@@ -408,7 +408,6 @@ async def on_message(message):
                             renamed_count += 1
                         except discord.Forbidden:
                             # This catches the "Server Owner" and "Role Hierarchy" blocks
-                            print(f"❌ BLOCKED: Discord won't let me rename {member.name} (Top role too high or Server Owner).")
                             failed_count += 1
                         except Exception as e:
                             print(f"❌ ERROR renaming {member.name}: {e}")
