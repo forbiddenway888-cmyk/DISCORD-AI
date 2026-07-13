@@ -332,10 +332,12 @@ async def on_member_remove(member):
 async def on_member_update(before, after):
     global clan_mode
     if clan_mode:
-        # If they don't have the mafia prefix, forcefully revert and translate their name
-        if not after.display_name.startswith(clan_prefix):
+        perfect_name = make_mafia_name(after)
+        
+        # If their name is not 100% perfectly translated, revert it
+        if after.display_name != perfect_name:
             try:
-                await after.edit(nick=make_mafia_name(after.name))
+                await after.edit(nick=perfect_name)
                 print(f"🛡️ Blocked {after.name} and enforced aesthetic clan tag.")
             except Exception:
                 pass
