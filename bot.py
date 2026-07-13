@@ -79,7 +79,7 @@ MAX_HISTORY = 6
 MAX_USERS_IN_MEMORY = 50 # Prevents Render from running out of RAM
 ADMIN_ID = 123456789012345678  # 👑 PASTE YOUR DISCORD ID HERE
 clan_mode = False              # Tracks if the enforcer is ON or OFF
-clan_prefix = "mafia x"        # The template prefix
+clan_prefix = "мαƒια χ"        # The template prefix
 
 def cleanup_memory():
     """Silently deletes old users if the RAM bank gets too full."""
@@ -295,7 +295,7 @@ async def on_member_remove(member):
         except Exception as e:
             print(f"Leave error: {e}")
 
-    @discord_client.event
+@discord_client.event
 async def on_member_update(before, after):
     global clan_mode
     # If Clan Mode is active, and they tried to change their nickname
