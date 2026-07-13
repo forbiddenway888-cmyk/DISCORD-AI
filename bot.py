@@ -83,39 +83,37 @@ clan_mode = False
 clan_prefix = "мαƒια χ"
 
 # The Aesthetic Font Translator
-# The Aesthetic Font Translator
 NORMAL_FONT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 AESTHETIC_FONT = "αв¢∂єƒgнιʝкℓмησρqяѕтυνωχуzαв¢∂єƒgнιʝкℓмησρqяѕтυνωχуz"
 FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
 
+clan_prefix = "мαƒια χ"
+
 def make_mafia_name(member):
     """Takes exact display name, keeps numbers, strips emojis, and translates."""
-    
-    # 1. Grab ONLY their display name
     raw_name = member.display_name
     
-    # 2. If they already have the clan tag, chop it off so we don't duplicate it
+    # 1. If they already have the clan tag, chop it off so we don't duplicate it
     if raw_name.startswith(clan_prefix):
-        raw_name = raw_name[len(clan_prefix):]
+        raw_name = raw_name[len(clan_prefix):].strip()
     elif raw_name.lower().startswith("mafia x"):
-        raw_name = raw_name[7:]
+        raw_name = raw_name[7:].strip()
         
-    # 3. Strip emojis and weird symbols, but KEEP letters, NUMBERS (0-9), and spaces
+    # 2. Strip emojis/symbols, but KEEP letters, NUMBERS (0-9), and spaces
     clean_name = re.sub(r'[^a-zA-Z0-9\s]', '', raw_name).strip()
     
-    # 4. Fallback in case their name was literally just a single emoji
+    # 3. Fallback in case their name was literally just a single emoji
     if len(clean_name) == 0:
         clean_name = "ghost"
         
-    # 5. Translate the letters (Numbers will automatically stay perfectly normal!)
+    # 4. Translate the letters (Numbers will automatically stay normal!)
     styled_name = clean_name.translate(FONT_MAP)
     
-    # 6. Build the final string and safely slice to Discord's 32-character limit
+    # 5. Build the final string
     full_nick = f"{clan_prefix} {styled_name}"
     
-    # Clean up double spaces just in case
+    # Clean up any double spaces and slice to Discord's 32-character limit
     full_nick = " ".join(full_nick.split()) 
-    
     return full_nick[:32]
     
 def cleanup_memory():
