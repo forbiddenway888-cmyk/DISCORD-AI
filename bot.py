@@ -391,21 +391,30 @@ async def on_message(message):
         if "clan" in lower_raw or "mafia" in lower_raw:
             
             # If you say words like "on", "start", or "enable"
+            # If you say words like "on", "start", or "enable"
             if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
                 clan_mode = True
                 await message.reply(f"🛡️ **Clan Enforcer ON.** Initiating mass server rename to {clan_prefix}...")
                 
                 renamed_count = 0
+                failed_count = 0
+                
+                # We use the standard cache. Since you enabled intents, this works perfectly.
                 for member in message.guild.members:
-                    # Check if they already have the exact prefix
                     if not member.display_name.startswith(clan_prefix):
                         try:
-                            # ⬇️ THE UPGRADE: Uses the new aesthetic translator
-                            await after.edit(nick=make_mafia_name(after))
+                            # Try to aesthetic-translate and rename them
+                            await member.edit(nick=make_mafia_name(member))
                             renamed_count += 1
-                        except Exception:
-                            pass
-                await message.channel.send(f"✅ Successfully translated and renamed {renamed_count} members.")
+                        except discord.Forbidden:
+                            # This catches the "Server Owner" and "Role Hierarchy" blocks
+                            print(f"❌ BLOCKED: Discord won't let me rename {member.name} (Top role too high or Server Owner).")
+                            failed_count += 1
+                        except Exception as e:
+                            print(f"❌ ERROR renaming {member.name}: {e}")
+                            failed_count += 1
+                            
+                await message.channel.send(f"✅ Successfully translated {renamed_count} members.\n⚠️ Skipped {failed_count} members (Server Owner / Higher Roles).")
                 return # Stop here
                 
             # If you say words like "off", "stop", or "disable"
