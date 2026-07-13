@@ -78,9 +78,22 @@ chat_history = {}
 MAX_HISTORY = 6
 MAX_USERS_IN_MEMORY = 50 # Prevents Render from running out of RAM
 ADMIN_ID = 1457960499798081549  # 👑 PASTE YOUR DISCORD ID HERE
-clan_mode = False              # Tracks if the enforcer is ON or OFF
-clan_prefix = "мαƒια χ"        # The template prefix
+clan_mode = False              
+clan_prefix = "мαƒια χ"
 
+# The Aesthetic Font Translator
+NORMAL_FONT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+AESTHETIC_FONT = "αв¢∂єƒgнιʝкℓмησρqяѕтυνωχуzαв¢∂єƒgнιʝкℓмησρqяѕтυνωχуz"
+FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
+
+def make_mafia_name(base_name):
+    """Translates a normal name into the aesthetic clan name safely."""
+    # 1. Translate the normal letters to the aesthetic font
+    styled_name = base_name.translate(FONT_MAP)
+    # 2. Add the custom prefix
+    full_nick = f"{clan_prefix} {styled_name}"
+    # 3. Discord limit is 32 characters, so we safely chop it if it's too long
+    return full_nick[:32]
 def cleanup_memory():
     """Silently deletes old users if the RAM bank gets too full."""
     if len(chat_history) > MAX_USERS_IN_MEMORY:
