@@ -10,6 +10,7 @@ import aiohttp # Make sure this is at the very top!
 import yt_dlp
 import random
 import time
+import re
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
@@ -82,17 +83,33 @@ clan_mode = False
 clan_prefix = "мαƒια χ"
 
 # The Aesthetic Font Translator
+# The Aesthetic Font Translator
 NORMAL_FONT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 AESTHETIC_FONT = "αв¢∂єƒgнιʝкℓмησρqяѕтυνωχуzαв¢∂єƒgнιʝкℓмησρqяѕтυνωχуz"
 FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
 
-def make_mafia_name(base_name):
-    """Translates a normal name into the aesthetic clan name safely."""
-    # 1. Translate the normal letters to the aesthetic font
-    styled_name = base_name.translate(FONT_MAP)
-    # 2. Add the custom prefix
+def make_mafia_name(member):
+    """Smart-detects the user's real name, strips numbers, and translates it."""
+    
+    # 1. Strip all numbers, emojis, and symbols from BOTH names. Keep only letters and spaces.
+    clean_display = re.sub(r'[^a-zA-Z\s]', '', member.display_name).strip()
+    clean_user = re.sub(r'[^a-zA-Z\s]', '', member.name).strip()
+    
+    # 2. Pick the best name (Prefer display name. If it's empty, use their username)
+    best_name = clean_display if len(clean_display) >= 2 else clean_user
+    
+    # 3. Fallback just in case someone's name was literally just "123"
+    if len(best_name) < 2:
+        best_name = "ghost"
+        
+    # 4. Grab just the FIRST word (so "Dark Sniper" becomes "Dark")
+    core_name = best_name.split()[0].lower()
+    
+    # 5. Translate it into the aesthetic font
+    styled_name = core_name.translate(FONT_MAP)
+    
+    # 6. Build the final Discord-safe string
     full_nick = f"{clan_prefix} {styled_name}"
-    # 3. Discord limit is 32 characters, so we safely chop it if it's too long
     return full_nick[:32]
 def cleanup_memory():
     """Silently deletes old users if the RAM bank gets too full."""
@@ -251,9 +268,12 @@ async def on_member_join(member):
     global clan_mode
     if clan_mode:
         try:
-            await member.edit(nick=f"{clan_prefix} {member.name}")
+            # ⬇️ Instantly translates their name the second they join
+            await member.edit(nick=make_mafia_name(member))
         except Exception:
             pass
+
+    # ... (Keep the rest of your normal welcome message code below this) ...
     # Sends the welcome to your main chat channel
     channel = discord.utils.get(member.guild.text_channels, name="♠️︱chat︱♠️")
     if channel:
@@ -311,13 +331,12 @@ async def on_member_remove(member):
 @discord_client.event
 async def on_member_update(before, after):
     global clan_mode
-    # If Clan Mode is active, and they tried to change their nickname
     if clan_mode:
-        # Check to prevent an infinite loop of the bot renaming them over and over
-        if not after.display_name.lower().startswith(clan_prefix):
+        # If they don't have the mafia prefix, forcefully revert and translate their name
+        if not after.display_name.startswith(clan_prefix):
             try:
-                await after.edit(nick=f"{clan_prefix} {after.name}")
-                print(f"🛡️ Blocked {after.name} from changing their clan tag.")
+                await after.edit(nick=make_mafia_name(after.name))
+                print(f"🛡️ Blocked {after.name} and enforced aesthetic clan tag.")
             except Exception:
                 pass
 
@@ -374,17 +393,19 @@ async def on_message(message):
             # If you say words like "on", "start", or "enable"
             if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
                 clan_mode = True
-                await message.reply("🛡️ **Clan Enforcer ON.** Initiating mass server rename, Boss...")
+                await message.reply(f"🛡️ **Clan Enforcer ON.** Initiating mass server rename to {clan_prefix}...")
                 
                 renamed_count = 0
                 for member in message.guild.members:
-                    if not member.display_name.lower().startswith(clan_prefix):
+                    # Check if they already have the exact prefix
+                    if not member.display_name.startswith(clan_prefix):
                         try:
-                            await member.edit(nick=f"{clan_prefix} {member.name}")
+                            # ⬇️ THE UPGRADE: Uses the new aesthetic translator
+                            await after.edit(nick=make_mafia_name(after))
                             renamed_count += 1
                         except Exception:
                             pass
-                await message.channel.send(f"✅ Successfully renamed {renamed_count} members.")
+                await message.channel.send(f"✅ Successfully translated and renamed {renamed_count} members.")
                 return # Stop here
                 
             # If you say words like "off", "stop", or "disable"
