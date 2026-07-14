@@ -79,35 +79,26 @@ chat_history = {}
 MAX_HISTORY = 6
 MAX_USERS_IN_MEMORY = 50 # Prevents Render from running out of RAM
 ADMIN_ID = 1457960499798081549  # 👑 PASTE YOUR DISCORD ID HERE
-clan_mode = False              
+# --- CLAN SYSTEM SETTINGS ---
+CLAN_MODE_ENABLED = True  # Change to False in the code to turn it all off
 clan_prefix = "мαƒια χ"
 
-# The Aesthetic Font Translator
-# The Aesthetic Font Translator
 NORMAL_FONT = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 AESTHETIC_FONT = "αв¢∂єƒgнιʝкℓмησρqяѕтυνωχуzαв¢∂єƒgнιʝкℓмησρqяѕтυνωχуz"
 FONT_MAP = str.maketrans(NORMAL_FONT, AESTHETIC_FONT)
 
-clan_prefix = "мαƒια χ"
-
 def make_mafia_name(member):
-    # 1. THE FIX: Completely ignore the server nickname. 
-    # Grab their pure, original Global Display Name (or username as fallback).
+    """Uses their pure global name, translates it, and adds the prefix."""
     raw_name = member.global_name or member.name
     
-    # 2. Just in case they actually put the prefix in their global profile, chop it off.
     if raw_name.startswith(clan_prefix):
         raw_name = raw_name[len(clan_prefix):].strip()
     elif raw_name.lower().startswith("mafia x"):
         raw_name = raw_name[7:].strip()
         
-    # 3. Translate the letters (Numbers and emojis stay perfectly normal!)
     styled_name = raw_name.translate(FONT_MAP)
-    
-    # 4. Slap the prefix back on and clean up any extra spaces
     full_nick = f"{clan_prefix} {styled_name}"
     
-    # Safely slice to Discord's 32-character limit
     return " ".join(full_nick.split())[:32]
     
 def cleanup_memory():
@@ -247,30 +238,44 @@ async def before_loops():
 async def on_ready():
     print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
     
-    # Start the meme dropper
+    # --- 1. START THE AUTO-POSTER LOOPS ---
     if not meme_dropper_loop.is_running():
         meme_dropper_loop.start()
-        
-    # Start the chat wake-upper
     if not chat_wakeupper_loop.is_running():
         chat_wakeupper_loop.start()
-        
-    # Start the new auto-image dropper
     if not auto_image_dropper.is_running():
         auto_image_dropper.start()
+
+    # --- 2. MASS RENAME ON BOOT ---
+    if CLAN_MODE_ENABLED:
+        print("🛡️ Clan Mode is True. Running one-time mass rename on boot...")
+        # Needs to fetch from all guilds the bot is in
+        for guild in discord_client.guilds:
+            async for member in guild.fetch_members(limit=None):
+                perfect_name = make_mafia_name(member)
+                
+                # Only renames them if they don't already have the perfect name
+                if member.display_name != perfect_name:
+                    try:
+                        await member.edit(nick=perfect_name)
+                    except discord.Forbidden:
+                        pass # Ignores Server Owner and high roles quietly
+                    except Exception:
+                        pass
+        print("✅ Boot-up mass rename complete!")
 
 
 
 
 @discord_client.event
 async def on_member_join(member):
-    global clan_mode
-    if clan_mode:
+    if CLAN_MODE_ENABLED:
         try:
-            # ⬇️ Instantly translates their name the second they join
             await member.edit(nick=make_mafia_name(member))
         except Exception:
             pass
+            
+    # ... (Keep your normal welcome message code below this if you have one) ...
 
     # ... (Keep the rest of your normal welcome message code below this) ...
     # Sends the welcome to your main chat channel
@@ -327,19 +332,7 @@ async def on_member_remove(member):
         except Exception as e:
             print(f"Leave error: {e}")
 
-@discord_client.event
-async def on_member_update(before, after):
-    global clan_mode
-    if clan_mode:
-        perfect_name = make_mafia_name(after)
-        
-        # If their name is not 100% perfectly translated, revert it
-        if after.display_name != perfect_name:
-            try:
-                await after.edit(nick=perfect_name)
-                print(f"🛡️ Blocked {after.name} and enforced aesthetic clan tag.")
-            except Exception:
-                pass
+
 
 # --- GLOBAL TRACKERS ---
 user_cooldowns = {} 
@@ -357,89 +350,10 @@ async def on_message(message):
     lower_raw = raw_content.lower()
     current_time = time.time()
     
-    global clan_mode
-    
-    # ==========================================
-    # 📸 1. THE MEDIA-ONLY CHANNEL FILTER
-    # ==========================================
-    # List the exact names (or partial names) of your media channels here
-    MEDIA_CHANNELS = ["media", "memes", "clips", "art", "screenshots", "pfps", "banners"] 
-
-    # Check if they are typing in one of the media channels
-    if any(media_name in message.channel.name.lower() for media_name in MEDIA_CHANNELS):
-        # Does the message have a file attached? (Image, Video, Audio)
-        has_attachment = len(message.attachments) > 0
-        
-        # Does the message have a link? (Like a Tenor GIF or YouTube link)
-        has_link = "http://" in lower_raw or "https://" in lower_raw
-        
-        # If they are just chatting with no files or links, NUKE IT.
-        if not has_attachment and not has_link:
-            try:
-                await message.delete()
-                # Sends a ghost warning that auto-deletes itself after 3 seconds
-                warning = await message.channel.send(f"⚠️ <@{user_id}>, this channel is for media only. No chatting!")
-                await warning.delete(delay=3)
-            except Exception:
-                pass
-            return # Stops the bot from processing this text any further
-
-    # ==========================================
-    # 👑 2. THE HUMAN-LANGUAGE ADMIN OVERRIDE
-    # ==========================================
-    if user_id == ADMIN_ID:
-        # Auto-detect if you are talking about the clan/mafia mode
-        if "clan" in lower_raw or "mafia" in lower_raw:
-            
-            # If you say words like "on", "start", or "enable"
-            # If you say words like "on", "start", or "enable"
-            # If you say words like "on", "start", or "enable"
-            if any(word in lower_raw for word in ["on", "start", "enable", "enforce"]):
-                clan_mode = True
-                status_msg = await message.reply(f"🛡️ **Clan Enforcer ON.** Ruthlessly overwriting entire server...")
-                
-                renamed_count = 0
-                failed_role_count = 0
-                
-                # Force Discord to hand over the entire 100+ member list
-                async for member in message.guild.fetch_members(limit=None):
-                    
-                    # 1. Calculate exactly what their name SHOULD look like
-                    perfect_name = make_mafia_name(member)
-                        
-                    # 2. ZERO LAZY CHECKS. Just forcefully overwrite everyone's name.
-                    try:
-                        await member.edit(nick=perfect_name)
-                        renamed_count += 1
-                    except discord.Forbidden:
-                        # ❌ This triggers if the Bot's role is too low, or it's the Server Owner
-                        failed_role_count += 1
-                    except Exception as e:
-                        print(f"❌ ERROR renaming {member.name}: {e}")
-                        failed_role_count += 1
-                        
-                # 📊 Print the final receipt to the chat
-                await status_msg.edit(content=f"✅ **Mass Rename Complete!**\n"
-                                              f"👑 Forcefully Renamed: `{renamed_count}`\n"
-                                              f"🛑 Skipped (Bot Role Too Low / Server Owner): `{failed_role_count}`\n"
-                                              f"👥 Total Members Crushed: `{renamed_count + failed_role_count}`")
-                return # Stop here
-                
-            # If you say words like "off", "stop", or "disable"
-            elif any(word in lower_raw for word in ["off", "stop", "disable", "remove"]):
-                clan_mode = False
-                await message.reply("🛡️ **Clan Enforcer OFF.** The mafia rests. Users can change names again.")
-                return # Stop here
-
-    user_id = message.author.id
-    raw_content = message.content
-    lower_raw = raw_content.lower()
-    current_time = time.time()
-    
     # 🛡️ THE SPAM SHIELD: 4-Second Cooldown
     # If they messaged the bot less than 4 seconds ago, completely ignore it.
     if user_id in user_cooldowns and (current_time - user_cooldowns[user_id] < 4):
-        return 
+        return
 
     # Check if they specifically pinged the bot or said its name
     is_pinged = discord_client.user.mentioned_in(message)
