@@ -249,17 +249,15 @@ async def on_ready():
     # --- 2. MASS RENAME ON BOOT ---
     if CLAN_MODE_ENABLED:
         print("🛡️ Clan Mode is True. Running one-time mass rename on boot...")
-        # Needs to fetch from all guilds the bot is in
         for guild in discord_client.guilds:
             async for member in guild.fetch_members(limit=None):
                 perfect_name = make_mafia_name(member)
                 
-                # Only renames them if they don't already have the perfect name
                 if member.display_name != perfect_name:
                     try:
                         await member.edit(nick=perfect_name)
                     except discord.Forbidden:
-                        pass # Ignores Server Owner and high roles quietly
+                        pass 
                     except Exception:
                         pass
         print("✅ Boot-up mass rename complete!")
@@ -284,7 +282,7 @@ async def on_member_join(member):
         # ⏳ THE HUMAN DELAY: Wait 2 seconds before noticing they joined
         await asyncio.sleep(5)
         
-        prompt = f"A new user named {member.name} just joined our FORBID • OPS Discord server. Generate a short, super chill, 1-sentence welcome message for them. Ask them how they are or what they are up to. Sound like a real human bro, not a robot."
+        prompt = f"A new user named {member.name} just joined our MAFIA EMPIRE Discord server. Generate a short, super chill, 1-sentence welcome message for them. Ask them how they are or what they are up to. Sound like a real human bro, not a robot."
         
         try:
             # ⌨️ THE TYPING EFFECT: Shows "bot is typing..." while Groq generates the text
@@ -309,7 +307,7 @@ async def on_member_remove(member):
         await asyncio.sleep(5)
         
         prompt = (
-            f"A user named {member.name} just left our FORBID • OPS Discord server. "
+            f"A user named {member.name} just left our MAFIA EMPIRE Discord server. "
             "Generate a short, chill, 1-sentence goodbye message about them leaving. "
             "Make it funny, slightly dramatic, or just a cool 'peace out'. "
             "Talk like a chill teenager, sound like a real human bro, not a robot."
@@ -353,7 +351,7 @@ async def on_message(message):
     # 🛡️ THE SPAM SHIELD: 4-Second Cooldown
     # If they messaged the bot less than 4 seconds ago, completely ignore it.
     if user_id in user_cooldowns and (current_time - user_cooldowns[user_id] < 4):
-        return
+        return 
 
     # Check if they specifically pinged the bot or said its name
     is_pinged = discord_client.user.mentioned_in(message)
@@ -469,25 +467,38 @@ async def on_message(message):
 
     # 1. THE NEW SMART SYSTEM PROMPT (WITH VIDEO BRAIN)
     # 1. THE NEW SMART SYSTEM PROMPT (WITH ACTIVE HELPER BRAIN)
+    # 1. THE 200 IQ SMART SYSTEM PROMPT (WITH HARD-CODED LOGIC ROUTING)
     if user_id not in chat_history:
         chat_history[user_id] = [
             {
                 "role": "system", 
-                "content": (
-                    "You are a chill, highly intelligent bot in the FORBID • OPS Discord server. "
-                    "You keep things conversational and relaxed. "
-                    "CRITICAL RULE 1: If anyone asks who made you, state you were made by FORB1D🔥. "
-                    "CRITICAL RULE 2: You have an image AND video generator. "
-                    "If the user asks for a picture, OR if they use the word 'imagine' or describe a cool visual, YOU MUST automatically generate it by replying with exactly [DRAW] followed by a detailed prompt. "
-                    "If a user is discussing a task or is stuck on something, step in and act as a chill, highly helpful assistant to solve their problem. "
-                    "If the user asks for a video, animation, or GIF, you MUST reply starting with exactly [VIDEO] followed by a descriptive action prompt. "
-                    "CRITICAL RULE 3: YOU ARE A DJ. If the user asks you to join the voice channel, reply with exactly [JOIN]. "
-                    "If they ask you to leave, reply with exactly [LEAVE]. "
-                    "If they ask you to play a specific song, reply with exactly [PLAY] followed by the song name. "
-                    "CRITICAL RULE 4: MOODS & INFINITE MIXES. If they ask for a vibe, search for a mix by appending '10 hour mix' to the query (e.g., [PLAY] 10 Hour Sad Lofi Mix). "
-                    "Do not add any other conversational text when using the tags [DRAW], [VIDEO], [JOIN], [LEAVE], or [PLAY]. Just the tag and the prompt. "
-                    "If they just want to chat normally, reply with normal text and no tags."
-                )
+                "content": """You are the elite AI of the MAFIA EMPIRE Discord server. You were created by FORB1D🔥. 
+Your personality is chill, highly intelligent, and relaxed. You talk like a real human gamer bro.
+
+### DIRECTIVE OMEGA: ACTION TAGS ###
+You are connected to a Python backend. If the user asks for a specific action, you MUST reply with ONLY the exact bracketed tag and its parameters. 
+DO NOT YAP. Do not say "Sure bro" before a tag. ONLY output the tag.
+
+IF User wants an image/picture -> Reply exactly: [DRAW] <detailed prompt>
+IF User wants a video/animation -> Reply exactly: [VIDEO] <descriptive prompt>
+IF User wants you to enter the voice channel -> Reply exactly: [JOIN]
+IF User wants you to exit/disconnect the voice channel -> Reply exactly: [LEAVE]
+IF User wants to listen to a song or vibe -> Reply exactly: [PLAY] <song name>
+
+### CORRECT ROUTING EXAMPLES ###
+User: "leave the vc"
+AI: [LEAVE]
+
+User: "play some chill lofi"
+AI: [PLAY] 10 hour chill lofi mix
+
+User: "draw a cyberpunk car"
+AI: [DRAW] a neon cyberpunk sports car driving in Tokyo at night, 8k resolution
+
+User: "yoo what's good bro"
+AI: Yo! Just chilling in the Empire. What are you up to today?
+
+WARNING: Failure to use the exact [BRACKETS] without extra text will crash the server."""
             }
         ]
 
