@@ -369,71 +369,7 @@ async def on_message(message):
     if is_pinged:
         raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
 
-    # ==========================================
-    # 🎧 THE MUSIC ENGINE ROUTER
-    # ==========================================
-    lower_content = raw_content.lower()
 
-    if lower_content.startswith("join me"):
-        
-        if message.author.voice:
-            channel = message.author.voice.channel
-            if not message.guild.voice_client:
-                await channel.connect()
-                await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
-            else:
-                await message.reply("Bro, I'm already in a channel!")
-        else:
-            await message.reply("You gotta join a Voice Channel first so I know where to go!")
-        return 
-
-    elif lower_content.startswith("play "):
-        song_query = raw_content[5:].strip()
-        
-        if not message.author.voice:
-            await message.reply("Join a VC first so I can play this for you!")
-            return
-            
-        vc = message.guild.voice_client
-        if not vc:
-            vc = await message.author.voice.channel.connect()
-
-        await message.reply(f"🔍 Searching for: `{song_query}`...")
-        
-        try:
-            def search_audio():
-                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
-                    return ydl.extract_info(f"scsearch:{song_query}", download=False)
-            
-            info = await asyncio.to_thread(search_audio)
-            
-            if 'entries' in info and len(info['entries']) > 0:
-                best_url = info['entries'][0]['url']
-                title = info['entries'][0]['title']
-                
-                if vc.is_playing():
-                    vc.stop()
-                    
-                def repeat_song(error):
-                    if error:
-                        print(f"Audio Error: {error}")
-                    if vc.is_connected():
-                        def play_again():
-                            if not vc.is_playing():
-                                new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                                vc.play(new_source, after=repeat_song)
-                        discord_client.loop.call_soon_threadsafe(play_again)
-
-                source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
-                vc.play(source, after=repeat_song)
-                await message.reply(f"🎶 **Now Playing (On Loop):** {title}")
-            else:
-                await message.reply("Bro, I couldn't find that song.")
-        except Exception as e:
-            print(f"Music Error: {e}")
-            await message.reply(f"Music engine crashed: `{str(e)}`")
-            
-        return
 
 
     
@@ -528,60 +464,7 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 7 specific actions, you 
     if len(chat_history[user_id]) > MAX_HISTORY:
         chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
 
-    try:
-        # 4. Send the message to Groq (Using your fast 70b text model!)
-        response = await ai_client.chat.completions.create(
-            messages=chat_history[user_id],
-            model="llama-3.1-8b-instant",
-        )
-        
-        bot_reply = response.choices[0].message.content
-        
-        # ==========================================
-        # THE AI ROUTER (UPGRADED & BULLETPROOF)
-        # ==========================================
-        # Clean up any hidden spaces or newlines Groq sent
-        bot_reply_clean = bot_reply.strip()
-
-        if "[DRAW]" in bot_reply_clean:
-            # Splits the message at [DRAW] and grabs everything after it
-            image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
-            
-            async with message.channel.typing():
-                safe_prompt = urllib.parse.quote(image_prompt)
-                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
-                
-                # ⬇️ 200 IQ UPGRADE: We check the API to make sure the prompt isn't blocked,
-                # BUT we deliberately DO NOT download the image data to save 100% bandwidth!
-                # Change session.get to session.head
-                async with aiohttp.ClientSession() as session:
-                    async with session.head(image_url) as resp: # <--- CHANGED TO .head()
-                        if resp.status == 200:
-                            # It's a valid, safe image! 
-                            display_title = f"🎨 {image_prompt}"
-                            if len(display_title) > 256:
-                                display_title = display_title[:253] + "..."
-                            
-                            embed = discord.Embed(title=display_title, color=discord.Color.purple())
-                            
-                            # ZERO BANDWIDTH MAGIC: We just give Discord the URL. 
-                            # Discord's servers will download it, Render downloads 0 bytes.
-                            embed.set_image(url=image_url)
-                            embed.set_footer(text="Generated by FORB1D🔥 via FORBID API")
-                            
-                            await message.reply(embed=embed)
-                            
-                        else:
-                            # If it's blocked (NSFW/Explicit), intercept it and show an error embed
-                            embed = discord.Embed(
-                                title="❌ AI Image Blocked",
-                                description=f"**Prompt:** `{image_prompt}`\n\n**Reason:** The generator rejected this. It might be explicit, NSFW, or against the safety filters.",
-                                color=discord.Color.red()
-                            )
-                            embed.set_footer(text="Keep it clean bro 💀")
-                            await message.reply(embed=embed)
-
-try:
+    
         # --- TRUE SIGHT: If they uploaded an image, use LLaMA 3.2 Vision ---
         if image_url:
             await message.add_reaction("👁️")
@@ -646,6 +529,28 @@ try:
     except Exception as e:
         print(f"Brain lag error: {e}")
         await message.reply("Bro, my brain just lagged out connecting to the API. Give me a sec.")
+
+        elif "[DRAW]" in bot_reply_clean:
+            image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
+            
+            async with message.channel.typing():
+                safe_prompt = urllib.parse.quote(image_prompt)
+                img_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
+                
+                async with aiohttp.ClientSession() as session:
+                    async with session.head(img_url) as resp:
+                        if resp.status == 200:
+                            display_title = f"🎨 {image_prompt}"
+                            if len(display_title) > 256:
+                                display_title = display_title[:253] + "..."
+                            
+                            embed = discord.Embed(title=display_title, color=discord.Color.purple())
+                            embed.set_image(url=img_url)
+                            embed.set_footer(text="Generated by FORB1D🔥 via FORBID API")
+                            await message.reply(embed=embed)
+                        else:
+                            embed = discord.Embed(title="❌ AI Image Blocked", description="Keep it clean bro 💀", color=discord.Color.red())
+                            await message.reply(embed=embed)
 
         elif "[VIDEO]" in bot_reply_clean:
             video_prompt = bot_reply_clean.split("[VIDEO]")[1].strip()
@@ -815,8 +720,6 @@ try:
 
     except Exception as e:
         print(f"API Error: {e}") 
-        if user_id in chat_history and len(chat_history[user_id]) > 0:
-            chat_history[user_id].pop() 
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
 
 # Start the bot
