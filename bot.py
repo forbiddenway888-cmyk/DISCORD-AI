@@ -632,7 +632,6 @@ try:
                 if not vc:
                     vc = await message.author.voice.channel.connect()
                 
-                # ZERO BANDWIDTH TTS HACK: Stream Google Translate API directly
                 safe_text = urllib.parse.quote(spoken_text)
                 tts_url = f"http://translate.google.com/translate_tts?ie=UTF-8&total=1&idx=0&client=tw-ob&q={safe_text}&tl=en"
                 
@@ -642,6 +641,11 @@ try:
                 source = discord.FFmpegPCMAudio(tts_url, **FFMPEG_OPTIONS)
                 vc.play(source)
                 await message.reply(f"🗣️ *(Speaking in VC)*")
+
+    # 👇 ADD THIS RIGHT HERE TO CLOSE THE 'TRY' BLOCK 👇
+    except Exception as e:
+        print(f"Brain lag error: {e}")
+        await message.reply("Bro, my brain just lagged out connecting to the API. Give me a sec.")
 
         elif "[VIDEO]" in bot_reply_clean:
             video_prompt = bot_reply_clean.split("[VIDEO]")[1].strip()
