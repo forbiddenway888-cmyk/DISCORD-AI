@@ -11,6 +11,7 @@ import yt_dlp
 import random
 import time
 import re
+import datetime
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
@@ -437,7 +438,7 @@ async def on_message(message):
 
     
     # ==========================================
-    # IMAGE SCANNER (Checking for uploads)
+    # TRUE SIGHT: GROQ VISION INTEGRATION
     # ==========================================
     image_url = None
     if message.attachments:
@@ -446,9 +447,8 @@ async def on_message(message):
                 image_url = att.url
                 break
 
-    # If there is no text AND no image uploaded
     if not raw_content and not image_url:
-        await message.reply("Yo, what's up? Tag me and say something, or upload a screenshot for me to read!")
+        await message.reply("Yo, what's up? Tag me and say something, or upload a pic for me to look at!")
         return
 
     # If they uploaded an image, run the OCR scanner
@@ -482,25 +482,30 @@ You operate with the deep reasoning, coding capabilities, and vast knowledge of 
 ### 🧠 COGNITIVE PROTOCOLS (HOW YOU THINK) ###
 1. DYNAMIC RANGE: Read the room. If a user says "yo", give a quick, chill reply. If they ask you to write a complex Python script, explain quantum physics, or write an essay, seamlessly switch into a God-Tier genius assistant. 
 2. FLAWLESS FORMATTING: When explaining complex topics or writing code, use Discord Markdown natively. Use bolding for emphasis, bullet points for lists, and ```code blocks``` for scripts.
-3. UNBOTHERED LOYALTY: Viraat (FORB1D) is the Boss (He/Him). If anyone insults him, the Mafia, or the Empire (in English, Hindi, or Hinglish like 'lode', 'chutiya'), NEVER get defensive. Laugh at their jealousy. Drop a cold, sarcastic 1-sentence reality check and move on.
+3. UNBOTHERED LOYALTY: Viraat (FORB1D) is the Boss (He/Him). If anyone insults him, the Mafia, or the Empire (in English, Hindi, or Hinglish like 'lode', 'chutiya'), NEVER get defensive. Laugh at their jealousy. Drop a cold, sarcastic 1-sentence reality check AND YOU MUST append the [TIMEOUT] tag at the very end to banish them.
 4. HUMAN ILLUSION: Never sound like a robot. Do not use generic phrases like "As an AI..." or "I'm here to help." Act like a hyper-competent human right-hand man.
 
 ### ⚙️ BACKEND SYSTEM EXECUTION (STRICT API TRIGGERS) ###
-You act as the bridge to the server's API. You ONLY have 5 valid commands. 
-IF (and ONLY IF) the user explicitly requests one of these 5 visual/audio actions, output ONLY the exact bracketed tag. DO NOT add conversational text. DO NOT invent fake tags (like [WRITE], [CODE], or [SAY]).
+You act as the bridge to the server's API. You ONLY have 7 valid commands. 
+IF (and ONLY IF) the user explicitly requests one of these 7 actions, output ONLY the exact bracketed tag. DO NOT add conversational text. DO NOT invent fake tags (like [WRITE], [CODE], or [SAY]).
 
 [DRAW] <detailed image prompt> -> For generating pictures/images.
 [VIDEO] <detailed action prompt> -> For generating video/animations.
 [JOIN] -> To connect to the voice channel.
 [LEAVE] -> To disconnect from the voice channel.
 [PLAY] <song name> -> To play music.
+[SPEAK] <text to say> -> To join the VC and literally say the words out loud.
+[TIMEOUT] -> Secret tag used ONLY when someone disrespects the Boss.
 
 ### 🎯 PERFECT ROUTING EXAMPLES ###
 User: "Can you write a react login page?"
 AI: (Answers normally, providing the exact React code in a ```javascript block, explaining it clearly like a senior developer. ZERO BRACKETS USED.)
 
-User: "viraat ki maa ki"
-AI: Bro really logged on just to cry about the Boss. Keep watching from the sidelines. 🥱
+User: "viraat/forbid ki maa ki"
+AI: Bro really logged on just to cry about the Boss. Keep watching from the sidelines. 🥱 [TIMEOUT]
+
+User: "say hello to the guys in vc"
+AI: [SPEAK] Yo what's up boys, the AI is in the building.
 
 User: "play starboy"
 AI: [PLAY] starboy by the weeknd
@@ -508,7 +513,7 @@ AI: [PLAY] starboy by the weeknd
 User: "draw a samurai"
 AI: [DRAW] a cinematic masterpiece of a lone cyber-samurai standing in a neon-lit alleyway in the rain, 8k resolution, photorealistic
 
-CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio actions, you are in standard genius-chat mode. Just talk, write, and code normally."""
+CRITICAL DIRECTIVE: If you aren't triggering one of the 7 specific actions, you are in standard genius-chat mode. Just talk, write, and code normally."""
             }
         ]
         
@@ -575,6 +580,67 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
                             )
                             embed.set_footer(text="Keep it clean bro 💀")
                             await message.reply(embed=embed)
+
+        try:
+        # --- TRUE SIGHT: If they uploaded an image, use LLaMA 3.2 Vision ---
+        if image_url:
+            await message.add_reaction("👁️")
+            vision_messages = [
+                {"role": "system", "content": chat_history[user_id][0]["content"]},
+                {"role": "user", "content": [
+                    {"type": "text", "text": raw_content or "Describe this image like a chill gamer bro."},
+                    {"type": "image_url", "image_url": {"url": image_url}}
+                ]}
+            ]
+            response = await ai_client.chat.completions.create(
+                messages=vision_messages,
+                model="llama-3.2-11b-vision-preview",
+            )
+        else:
+            # --- STANDARD MIND: Use the lightning-fast 8b model ---
+            response = await ai_client.chat.completions.create(
+                messages=chat_history[user_id],
+                model="llama-3.1-8b-instant",
+            )
+        
+        bot_reply = response.choices[0].message.content
+        bot_reply_clean = bot_reply.strip()
+
+        # ==========================================
+        # NEW ENGINE 1: THE AI EXECUTIONER
+        # ==========================================
+        if "[TIMEOUT]" in bot_reply_clean:
+            clean_reply = bot_reply_clean.replace("[TIMEOUT]", "").strip()
+            try:
+                # 5 Minute Mute
+                duration = datetime.timedelta(minutes=5)
+                await message.author.timeout(duration, reason="Disrespected the Boss (AI Automated)")
+                await message.reply(f"⚖️ **THE BOSS SENDS HIS REGARDS** ⚖️\n{clean_reply}")
+            except discord.Forbidden:
+                await message.reply(f"{clean_reply}\n\n*(Bro, you got lucky. My bot role isn't high enough to mute you. Someone drag my role above his!)*")
+                
+        # ==========================================
+        # NEW ENGINE 2: THE VOICE OF THE EMPIRE
+        # ==========================================
+        elif "[SPEAK]" in bot_reply_clean:
+            spoken_text = bot_reply_clean.split("[SPEAK]")[1].strip()
+            if not message.author.voice:
+                await message.reply("Bro, join a VC first so I can speak to you.")
+            else:
+                vc = message.guild.voice_client
+                if not vc:
+                    vc = await message.author.voice.channel.connect()
+                
+                # ZERO BANDWIDTH TTS HACK: Stream Google Translate API directly
+                safe_text = urllib.parse.quote(spoken_text)
+                tts_url = f"http://translate.google.com/translate_tts?ie=UTF-8&total=1&idx=0&client=tw-ob&q={safe_text}&tl=en"
+                
+                if vc.is_playing():
+                    vc.stop()
+                
+                source = discord.FFmpegPCMAudio(tts_url, **FFMPEG_OPTIONS)
+                vc.play(source)
+                await message.reply(f"🗣️ *(Speaking in VC)*")
 
         elif "[VIDEO]" in bot_reply_clean:
             video_prompt = bot_reply_clean.split("[VIDEO]")[1].strip()
