@@ -581,11 +581,12 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 7 specific actions, you 
                             embed.set_footer(text="Keep it clean bro 💀")
                             await message.reply(embed=embed)
 
-        try:
+try:
         # --- TRUE SIGHT: If they uploaded an image, use LLaMA 3.2 Vision ---
         if image_url:
             await message.add_reaction("👁️")
             vision_messages = [
+                
                 {"role": "system", "content": chat_history[user_id][0]["content"]},
                 {"role": "user", "content": [
                     {"type": "text", "text": raw_content or "Describe this image like a chill gamer bro."},
