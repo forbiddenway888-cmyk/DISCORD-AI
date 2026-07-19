@@ -684,8 +684,10 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
                 await message.reply("You gotta join a Voice Channel first so I know where to go!")
 
         elif "[LEAVE]" in bot_reply_clean:
-            if message.guild.voice_client:
-                await message.guild.voice_client.disconnect()
+            vc = message.guild.voice_client
+            if vc:
+                vc.stop() # 🛑 Kills the infinite music loop first
+                await vc.disconnect(force=True) # 🔌 Rips the plug out
                 await message.reply("Peace out ✌️ Left the VC.")
             else:
                 await message.reply("I'm not even in a voice channel bruh.")
