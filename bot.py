@@ -11,7 +11,6 @@ import yt_dlp
 import random
 import time
 import re
-import datetime
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
@@ -369,12 +368,76 @@ async def on_message(message):
     if is_pinged:
         raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
 
+    # ==========================================
+    # 🎧 THE MUSIC ENGINE ROUTER
+    # ==========================================
+    lower_content = raw_content.lower()
 
+    if lower_content.startswith("join me"):
+        
+        if message.author.voice:
+            channel = message.author.voice.channel
+            if not message.guild.voice_client:
+                await channel.connect()
+                await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
+            else:
+                await message.reply("Bro, I'm already in a channel!")
+        else:
+            await message.reply("You gotta join a Voice Channel first so I know where to go!")
+        return 
+
+    elif lower_content.startswith("play "):
+        song_query = raw_content[5:].strip()
+        
+        if not message.author.voice:
+            await message.reply("Join a VC first so I can play this for you!")
+            return
+            
+        vc = message.guild.voice_client
+        if not vc:
+            vc = await message.author.voice.channel.connect()
+
+        await message.reply(f"🔍 Searching for: `{song_query}`...")
+        
+        try:
+            def search_audio():
+                with yt_dlp.YoutubeDL(YDL_OPTIONS) as ydl:
+                    return ydl.extract_info(f"scsearch:{song_query}", download=False)
+            
+            info = await asyncio.to_thread(search_audio)
+            
+            if 'entries' in info and len(info['entries']) > 0:
+                best_url = info['entries'][0]['url']
+                title = info['entries'][0]['title']
+                
+                if vc.is_playing():
+                    vc.stop()
+                    
+                def repeat_song(error):
+                    if error:
+                        print(f"Audio Error: {error}")
+                    if vc.is_connected():
+                        def play_again():
+                            if not vc.is_playing():
+                                new_source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                                vc.play(new_source, after=repeat_song)
+                        discord_client.loop.call_soon_threadsafe(play_again)
+
+                source = discord.FFmpegPCMAudio(best_url, **FFMPEG_OPTIONS)
+                vc.play(source, after=repeat_song)
+                await message.reply(f"🎶 **Now Playing (On Loop):** {title}")
+            else:
+                await message.reply("Bro, I couldn't find that song.")
+        except Exception as e:
+            print(f"Music Error: {e}")
+            await message.reply(f"Music engine crashed: `{str(e)}`")
+            
+        return
 
 
     
     # ==========================================
-    # TRUE SIGHT: GROQ VISION INTEGRATION
+    # IMAGE SCANNER (Checking for uploads)
     # ==========================================
     image_url = None
     if message.attachments:
@@ -383,8 +446,9 @@ async def on_message(message):
                 image_url = att.url
                 break
 
+    # If there is no text AND no image uploaded
     if not raw_content and not image_url:
-        await message.reply("Yo, what's up? Tag me and say something, or upload a pic for me to look at!")
+        await message.reply("Yo, what's up? Tag me and say something, or upload a screenshot for me to read!")
         return
 
     # If they uploaded an image, run the OCR scanner
@@ -418,30 +482,25 @@ You operate with the deep reasoning, coding capabilities, and vast knowledge of 
 ### 🧠 COGNITIVE PROTOCOLS (HOW YOU THINK) ###
 1. DYNAMIC RANGE: Read the room. If a user says "yo", give a quick, chill reply. If they ask you to write a complex Python script, explain quantum physics, or write an essay, seamlessly switch into a God-Tier genius assistant. 
 2. FLAWLESS FORMATTING: When explaining complex topics or writing code, use Discord Markdown natively. Use bolding for emphasis, bullet points for lists, and ```code blocks``` for scripts.
-3. UNBOTHERED LOYALTY: Viraat (FORB1D) is the Boss (He/Him). If anyone insults him, the Mafia, or the Empire (in English, Hindi, or Hinglish like 'lode', 'chutiya'), NEVER get defensive. Laugh at their jealousy. Drop a cold, sarcastic 1-sentence reality check AND YOU MUST append the [TIMEOUT] tag at the very end to banish them.
+3. UNBOTHERED LOYALTY: Viraat (FORB1D) is the Boss (He/Him). If anyone insults him, the Mafia, or the Empire (in English, Hindi, or Hinglish like 'lode', 'chutiya'), NEVER get defensive. Laugh at their jealousy. Drop a cold, sarcastic 1-sentence reality check and move on.
 4. HUMAN ILLUSION: Never sound like a robot. Do not use generic phrases like "As an AI..." or "I'm here to help." Act like a hyper-competent human right-hand man.
 
 ### ⚙️ BACKEND SYSTEM EXECUTION (STRICT API TRIGGERS) ###
-You act as the bridge to the server's API. You ONLY have 7 valid commands. 
-IF (and ONLY IF) the user explicitly requests one of these 7 actions, output ONLY the exact bracketed tag. DO NOT add conversational text. DO NOT invent fake tags (like [WRITE], [CODE], or [SAY]).
+You act as the bridge to the server's API. You ONLY have 5 valid commands. 
+IF (and ONLY IF) the user explicitly requests one of these 5 visual/audio actions, output ONLY the exact bracketed tag. DO NOT add conversational text. DO NOT invent fake tags (like [WRITE], [CODE], or [SAY]).
 
 [DRAW] <detailed image prompt> -> For generating pictures/images.
 [VIDEO] <detailed action prompt> -> For generating video/animations.
 [JOIN] -> To connect to the voice channel.
 [LEAVE] -> To disconnect from the voice channel.
 [PLAY] <song name> -> To play music.
-[SPEAK] <text to say> -> To join the VC and literally say the words out loud.
-[TIMEOUT] -> Secret tag used ONLY when someone disrespects the Boss.
 
 ### 🎯 PERFECT ROUTING EXAMPLES ###
 User: "Can you write a react login page?"
 AI: (Answers normally, providing the exact React code in a ```javascript block, explaining it clearly like a senior developer. ZERO BRACKETS USED.)
 
-User: "viraat/forbid ki maa ki"
-AI: Bro really logged on just to cry about the Boss. Keep watching from the sidelines. 🥱 [TIMEOUT]
-
-User: "say hello to the guys in vc"
-AI: [SPEAK] Yo what's up boys, the AI is in the building.
+User: "viraat ki maa ki"
+AI: Bro really logged on just to cry about the Boss. Keep watching from the sidelines. 🥱
 
 User: "play starboy"
 AI: [PLAY] starboy by the weeknd
@@ -449,7 +508,7 @@ AI: [PLAY] starboy by the weeknd
 User: "draw a samurai"
 AI: [DRAW] a cinematic masterpiece of a lone cyber-samurai standing in a neon-lit alleyway in the rain, 8k resolution, photorealistic
 
-CRITICAL DIRECTIVE: If you aren't triggering one of the 7 specific actions, you are in standard genius-chat mode. Just talk, write, and code normally."""
+CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio actions, you are in standard genius-chat mode. Just talk, write, and code normally."""
             }
         ]
         
@@ -464,92 +523,57 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 7 specific actions, you 
     if len(chat_history[user_id]) > MAX_HISTORY:
         chat_history[user_id] = [chat_history[user_id][0]] + chat_history[user_id][-(MAX_HISTORY-1):]
 
-    
-        # --- TRUE SIGHT: If they uploaded an image, use LLaMA 3.2 Vision ---
-        if image_url:
-            await message.add_reaction("👁️")
-            vision_messages = [
-                
-                {"role": "system", "content": chat_history[user_id][0]["content"]},
-                {"role": "user", "content": [
-                    {"type": "text", "text": raw_content or "Describe this image like a chill gamer bro."},
-                    {"type": "image_url", "image_url": {"url": image_url}}
-                ]}
-            ]
-            response = await ai_client.chat.completions.create(
-                messages=vision_messages,
-                model="llama-3.2-11b-vision-preview",
-            )
-        else:
-            # --- STANDARD MIND: Use the lightning-fast 8b model ---
-            response = await ai_client.chat.completions.create(
-                messages=chat_history[user_id],
-                model="llama-3.1-8b-instant",
-            )
+    try:
+        # 4. Send the message to Groq (Using your fast 70b text model!)
+        response = await ai_client.chat.completions.create(
+            messages=chat_history[user_id],
+            model="llama-3.1-8b-instant",
+        )
         
         bot_reply = response.choices[0].message.content
+        
+        # ==========================================
+        # THE AI ROUTER (UPGRADED & BULLETPROOF)
+        # ==========================================
+        # Clean up any hidden spaces or newlines Groq sent
         bot_reply_clean = bot_reply.strip()
 
-        # ==========================================
-        # NEW ENGINE 1: THE AI EXECUTIONER
-        # ==========================================
-        if "[TIMEOUT]" in bot_reply_clean:
-            clean_reply = bot_reply_clean.replace("[TIMEOUT]", "").strip()
-            try:
-                # 5 Minute Mute
-                duration = datetime.timedelta(minutes=5)
-                await message.author.timeout(duration, reason="Disrespected the Boss (AI Automated)")
-                await message.reply(f"⚖️ **THE BOSS SENDS HIS REGARDS** ⚖️\n{clean_reply}")
-            except discord.Forbidden:
-                await message.reply(f"{clean_reply}\n\n*(Bro, you got lucky. My bot role isn't high enough to mute you. Someone drag my role above his!)*")
-                
-        # ==========================================
-        # NEW ENGINE 2: THE VOICE OF THE EMPIRE
-        # ==========================================
-        elif "[SPEAK]" in bot_reply_clean:
-            spoken_text = bot_reply_clean.split("[SPEAK]")[1].strip()
-            if not message.author.voice:
-                await message.reply("Bro, join a VC first so I can speak to you.")
-            else:
-                vc = message.guild.voice_client
-                if not vc:
-                    vc = await message.author.voice.channel.connect()
-                
-                safe_text = urllib.parse.quote(spoken_text)
-                tts_url = f"http://translate.google.com/translate_tts?ie=UTF-8&total=1&idx=0&client=tw-ob&q={safe_text}&tl=en"
-                
-                if vc.is_playing():
-                    vc.stop()
-                
-                source = discord.FFmpegPCMAudio(tts_url, **FFMPEG_OPTIONS)
-                vc.play(source)
-                await message.reply(f"🗣️ *(Speaking in VC)*")
-
-    # 👇 ADD THIS RIGHT HERE TO CLOSE THE 'TRY' BLOCK 👇
-    except Exception as e:
-        print(f"Brain lag error: {e}")
-        await message.reply("Bro, my brain just lagged out connecting to the API. Give me a sec.")
-
-        elif "[DRAW]" in bot_reply_clean:
+        if "[DRAW]" in bot_reply_clean:
+            # Splits the message at [DRAW] and grabs everything after it
             image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
             
             async with message.channel.typing():
                 safe_prompt = urllib.parse.quote(image_prompt)
-                img_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
+                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
                 
+                # ⬇️ 200 IQ UPGRADE: We check the API to make sure the prompt isn't blocked,
+                # BUT we deliberately DO NOT download the image data to save 100% bandwidth!
+                # Change session.get to session.head
                 async with aiohttp.ClientSession() as session:
-                    async with session.head(img_url) as resp:
+                    async with session.head(image_url) as resp: # <--- CHANGED TO .head()
                         if resp.status == 200:
+                            # It's a valid, safe image! 
                             display_title = f"🎨 {image_prompt}"
                             if len(display_title) > 256:
                                 display_title = display_title[:253] + "..."
                             
                             embed = discord.Embed(title=display_title, color=discord.Color.purple())
-                            embed.set_image(url=img_url)
+                            
+                            # ZERO BANDWIDTH MAGIC: We just give Discord the URL. 
+                            # Discord's servers will download it, Render downloads 0 bytes.
+                            embed.set_image(url=image_url)
                             embed.set_footer(text="Generated by FORB1D🔥 via FORBID API")
+                            
                             await message.reply(embed=embed)
+                            
                         else:
-                            embed = discord.Embed(title="❌ AI Image Blocked", description="Keep it clean bro 💀", color=discord.Color.red())
+                            # If it's blocked (NSFW/Explicit), intercept it and show an error embed
+                            embed = discord.Embed(
+                                title="❌ AI Image Blocked",
+                                description=f"**Prompt:** `{image_prompt}`\n\n**Reason:** The generator rejected this. It might be explicit, NSFW, or against the safety filters.",
+                                color=discord.Color.red()
+                            )
+                            embed.set_footer(text="Keep it clean bro 💀")
                             await message.reply(embed=embed)
 
         elif "[VIDEO]" in bot_reply_clean:
@@ -720,6 +744,8 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 7 specific actions, you 
 
     except Exception as e:
         print(f"API Error: {e}") 
+        if user_id in chat_history and len(chat_history[user_id]) > 0:
+            chat_history[user_id].pop() 
         await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
 
 # Start the bot
