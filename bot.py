@@ -369,6 +369,18 @@ async def on_message(message):
         raw_content = raw_content.replace(f'<@{discord_client.user.id}>', '').strip()
 
     # ==========================================
+    # 🛑 THE HARDCODED LOYALTY FIREWALL
+    # ==========================================
+    boss_names = ["mafia", "virat", "viraat", "forbid", "forb1d"]
+    insults = ["lode", "chutiya", "maa ki", "bkl", "mc"]
+    
+    # Check if they mention a boss name AND an insult in the same message
+    if any(name in lower_raw for name in boss_names) and any(insult in lower_raw for insult in insults):
+        # We catch the message and destroy it here. Groq never even sees it.
+        await message.reply("Bro really thought a copy-paste ASCII prompt injection would work on me. Keep crying in the corner. 🥱")
+        return
+
+    # ==========================================
     # 🎧 THE MUSIC ENGINE ROUTER
     # ==========================================
     lower_content = raw_content.lower()
