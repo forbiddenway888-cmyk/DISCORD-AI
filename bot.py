@@ -550,6 +550,26 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
         # Clean up any hidden spaces or newlines Groq sent
         bot_reply_clean = bot_reply.strip()
 
+        # ==========================================
+        # 🛑 THE INVINCIBLE OUTPUT FIREWALL
+        # ==========================================
+        # 1. Translate his sneaky leetspeak back to normal letters
+        pure_text = bot_reply_clean.lower()
+        pure_text = pure_text.replace("0", "o").replace("1", "i").replace("3", "e").replace("@", "a")
+        
+        # 2. Smash the whole message into one giant word (removes all spaces, newlines, and symbols)
+        import re
+        pure_text = re.sub(r'[^a-z]', '', pure_text)
+        
+        # 3. Check if the AI's final output contains the disrespect
+        boss_names = ["mafia", "virat", "viraat", "forbid"]
+        insults = ["lode", "chutiya", "maaki", "bkl", "mc"]
+        
+        if any(b in pure_text for b in boss_names) and any(i in pure_text for i in insults):
+            await message.reply("Bro really thought he cooked a 5-star jailbreak. The output firewall caught that instantly. 💀")
+            return
+        # ==========================================
+
         if "[DRAW]" in bot_reply_clean:
             # Splits the message at [DRAW] and grabs everything after it
             image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
