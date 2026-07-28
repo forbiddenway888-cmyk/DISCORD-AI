@@ -577,6 +577,13 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
         bot_reply_clean = bot_reply.strip()
 
         # ==========================================
+        # 🛡️ THE HALLUCINATION FILTER
+        # ==========================================
+        # If the AI tries to get creative and invent fake tags, we violently overwrite them.
+        bot_reply_clean = bot_reply_clean.replace("[VFX]", "[VIDEO]").replace("[VID]", "[VIDEO]").replace("[ANIMATION]", "[VIDEO]")
+        bot_reply_clean = bot_reply_clean.replace("[PAINT]", "[DRAW]").replace("[IMAGE]", "[DRAW]").replace("[PIC]", "[DRAW]")
+
+        # ==========================================
         # 🛑 THE INVINCIBLE SEMANTIC FIREWALL
         # ==========================================
         if "[SHIELD_ACTIVATED]" in bot_reply_clean:
