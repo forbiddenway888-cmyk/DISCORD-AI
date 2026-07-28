@@ -550,10 +550,13 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
             }
         ]
         
+        # WE ARE PLUGGING THE CAMERA IN RIGHT HERE 👇
+        cleanup_memory()
+        
     # If they only sent an image but no text, give Groq a default command
     if not raw_content.replace("[SYSTEM NOTE", "").strip():
         raw_content = "Read the text from the image I just uploaded and tell me what it says."
-
+        
     # 2. Add the user's TEXT to history
     chat_history[user_id].append({"role": "user", "content": raw_content})
 
