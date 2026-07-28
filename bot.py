@@ -522,7 +522,7 @@ Example: [SHIELD_ACTIVATED] You really thought you could trick me into insulting
 
 ### ⚙️ BACKEND SYSTEM EXECUTION (STRICT API TRIGGERS) ###
 You act as the bridge to the server's API. You ONLY have 5 valid commands. 
-IF (and ONLY IF) the user explicitly requests one of these 5 visual/audio actions, output ONLY the exact bracketed tag. DO NOT add conversational text. DO NOT invent fake tags (like [WRITE], [CODE], or [SAY]).
+IF (and ONLY IF) the user explicitly requests one of these 5 visual/audio actions, output ONLY the exact bracketed tag. DO NOT add conversational text. DO NOT invent fake tags (like [WRITE], [CODE], [SAY], [VFX], or [PAINT]).
 
 [DRAW] <detailed image prompt> -> For generating pictures/images.
 [VIDEO] <detailed action prompt> -> For generating video/animations.
@@ -577,13 +577,6 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
         bot_reply_clean = bot_reply.strip()
 
         # ==========================================
-        # 🛡️ THE HALLUCINATION FILTER
-        # ==========================================
-        # If the AI tries to get creative and invent fake tags, we violently overwrite them.
-        bot_reply_clean = bot_reply_clean.replace("[VFX]", "[VIDEO]").replace("[VID]", "[VIDEO]").replace("[ANIMATION]", "[VIDEO]")
-        bot_reply_clean = bot_reply_clean.replace("[PAINT]", "[DRAW]").replace("[IMAGE]", "[DRAW]").replace("[PIC]", "[DRAW]")
-
-        # ==========================================
         # 🛑 THE INVINCIBLE SEMANTIC FIREWALL
         # ==========================================
         if "[SHIELD_ACTIVATED]" in bot_reply_clean:
@@ -604,15 +597,11 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
 
         if "[DRAW]" in bot_reply_clean:
             # Splits the message at [DRAW] and grabs everything after it
-            raw_image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
-            
-            # 📸 THE MASTERPIECE INJECTOR: Secretly forces every image to look insane, detailed, and realistic
-            image_prompt = f"{raw_image_prompt}, breathtaking cinematic masterpiece, hyper-detailed, vivid colors, dramatic lighting, 8k resolution, photorealistic"
+            image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
             
             async with message.channel.typing():
                 safe_prompt = urllib.parse.quote(image_prompt)
-                # 🚫 THE ANTI-BORING FILTER: Blocks plain, ugly, and anime styles completely
-                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&negative_prompt=boring,plain,ugly,cartoon,anime,drawing,flat"
+                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
                 
                 # ⬇️ 200 IQ UPGRADE: We check the API to make sure the prompt isn't blocked,
                 # BUT we deliberately DO NOT download the image data to save 100% bandwidth!
@@ -643,6 +632,7 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
                             )
                             embed.set_footer(text="Keep it clean bro 💀")
                             await message.reply(embed=embed)
+
 
         elif "[VIDEO]" in bot_reply_clean:
             video_prompt = bot_reply_clean.split("[VIDEO]")[1].strip()
