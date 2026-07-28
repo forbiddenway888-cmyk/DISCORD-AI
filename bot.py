@@ -809,10 +809,18 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
         chat_history[user_id].append({"role": "assistant", "content": bot_reply})
 
     except Exception as e:
+        # We still print the real error in your Render console so YOU can debug it
         print(f"API Error: {e}") 
+        
         if user_id in chat_history and len(chat_history[user_id]) > 0:
             chat_history[user_id].pop() 
-        await message.reply(f"Bro my brain lagged. Error: `{str(e)}`")
+            
+        # 🛑 THE IDENTITY PROTECTOR: Hides the raw API string from the Discord chat
+        error_string = str(e).lower()
+        if "rate limit" in error_string or "429" in error_string or "capacity" in error_string:
+            await message.reply("Bro, the Mafia servers are getting spammed too fast. Give me a minute to catch my breath. 🛑")
+        else:
+            await message.reply("Bro, my core system just lagged out for a second. Ask me that again.")
 
 # Start the bot
 if __name__ == "__main__":
