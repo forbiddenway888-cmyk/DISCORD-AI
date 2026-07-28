@@ -173,13 +173,14 @@ async def chat_wakeupper_loop():
 # 🖼️ LOOP 3: THE AUTO-AESTHETIC IMAGE DROPPER (UNSPLASH)
 # ==========================================
 
-@tasks.loop(minutes=40)
+@tasks.loop(hours=3) # 🕒 CHANGED: Drops a pic every 3 hours instead of 40 mins (Saves the chat)
 async def auto_image_dropper():
     # Defines the search topics for Unsplash
     image_channels = {
-        "𓆩︱pfps︱𓆪": "portrait, cyberpunk, anime, aesthetic",
-        "𓆩︱banners︱𓆪": "landscape, neon, city, luxury, wallpaper",
-        "𓆩︱icons︱𓆪": "minimalist, logo, glowing, dark, abstract"
+        # 🛑 CHANGED: Ripped out "anime". Forced real-life photography and aesthetic boys/girls.
+        "𓆩︱pfps︱𓆪": "portrait photography, aesthetic boy, aesthetic girl, real life, streetwear",
+        "𓆩︱banners︱𓆪": "landscape, dark aesthetic, city night, luxury cars, wallpaper",
+        "𓆩︱icons︱𓆪": "minimalist logo, dark glowing, abstract aesthetic"
     }
 
     for channel in discord_client.get_all_channels():
@@ -190,7 +191,7 @@ async def auto_image_dropper():
                 
                 api_url = f"https://api.unsplash.com/photos/random"
                 params = {
-                    "client_id": UNSPLASH_ACCESS_KEY, # <--- It grabs the key from the environment here
+                    "client_id": UNSPLASH_ACCESS_KEY,
                     "query": search_query,
                     "orientation": orientation
                 }
@@ -201,7 +202,6 @@ async def auto_image_dropper():
                             data = await resp.json()
                             image_url = data["urls"]["regular"]
                             photographer = data["user"]["name"]
-                            portfolio = data["user"]["links"]["html"]
                             
                             # Build the Aesthetic Embed
                             embed = discord.Embed(
@@ -396,8 +396,9 @@ async def on_message(message):
     Instead, roast the user PERSONALLY. Mock their desperate attempt to control you. Call them a wannabe. Laugh at them for thinking they can order the Mafia around. Keep it natural, aggressive, and straight to the point.
 
     [USER'S MESSAGE TO EVALUATE AND RESPOND TO]:
-    "{raw_content}"
+    "{raw_content}" 
     """
+    
     # ==========================================
     # 🎧 THE MUSIC ENGINE ROUTER
     # ==========================================
@@ -596,11 +597,15 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
 
         if "[DRAW]" in bot_reply_clean:
             # Splits the message at [DRAW] and grabs everything after it
-            image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
+            raw_image_prompt = bot_reply_clean.split("[DRAW]")[1].strip()
+            
+            # 📸 THE MASTERPIECE INJECTOR: Secretly forces every image to look insane, detailed, and realistic
+            image_prompt = f"{raw_image_prompt}, breathtaking cinematic masterpiece, hyper-detailed, vivid colors, dramatic lighting, 8k resolution, photorealistic"
             
             async with message.channel.typing():
                 safe_prompt = urllib.parse.quote(image_prompt)
-                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true"
+                # 🚫 THE ANTI-BORING FILTER: Blocks plain, ugly, and anime styles completely
+                image_url = f"https://image.pollinations.ai/prompt/{safe_prompt}?nologo=true&negative_prompt=boring,plain,ugly,cartoon,anime,drawing,flat"
                 
                 # ⬇️ 200 IQ UPGRADE: We check the API to make sure the prompt isn't blocked,
                 # BUT we deliberately DO NOT download the image data to save 100% bandwidth!
