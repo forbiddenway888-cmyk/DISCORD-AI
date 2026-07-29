@@ -11,6 +11,22 @@ import yt_dlp
 import random
 import time
 import re
+import aiosqlite
+
+# ==========================================
+# 💎 THE DIAMOND VAULT (DATABASE SETUP)
+# ==========================================
+async def setup_diamond_vault():
+    # Creates a local database file (Zero bandwidth, lightning fast)
+    async with aiosqlite.connect("forbid_economy.db") as db:
+        await db.execute('''
+            CREATE TABLE IF NOT EXISTS users (
+                user_id INTEGER PRIMARY KEY,
+                diamonds INTEGER DEFAULT 0
+            )
+        ''')
+        await db.commit()
+    print("💎 Diamond Vault securely initialized.")
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
@@ -337,6 +353,9 @@ async def on_ready():
                     except Exception:
                         pass
         print("✅ Boot-up mass rename complete!")
+
+# --- 3. START ECONOMY ---
+    await setup_diamond_vault()
 
 
 
