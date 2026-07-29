@@ -514,17 +514,31 @@ async def on_message(message):
     current_time = time.time()
     
     # -------------------------------------------------------------
-    # 💎 STEP 3: THE DIAMOND ECONOMY (PASSIVE EARNING)
+    # 💎 STEP 3: THE DYNAMIC ECONOMY (RNG & CHAT SPEED)
     # -------------------------------------------------------------
-    last_diamond_time = user_diamond_cooldowns.get(user_id, 0)
+    # Get the time since their last message, then update it immediately
+    last_time = user_diamond_cooldowns.get(user_id, 0)
+    delay = current_time - last_time
+    user_diamond_cooldowns[user_id] = current_time 
     
-    if current_time - last_diamond_time >= 60:
-        clean_content = raw_content.strip()
-        # Minimum 8 chars and 2 words to stop spam
-        if len(clean_content) >= 8 and len(clean_content.split()) >= 2:
-            user_diamond_cooldowns[user_id] = current_time
+    clean_content = raw_content.strip()
+    
+    # 1. Base Anti-Spam Check (At least 8 chars, 2 words)
+    if len(clean_content) >= 8 and len(clean_content.split()) >= 2:
+        
+        # 2. Calculate the Drop Chance based on chat speed
+        drop_chance = 0
+        if delay < 5:
+            drop_chance = 0    # SPAM: 0% chance
+        elif 5 <= delay <= 15:
+            drop_chance = 25   # FAST CHAT: 25% chance
+        else:
+            drop_chance = 65   # NATURAL PACE: 65% chance
+            
+        # 3. Roll the Dice! (Zero bandwidth RNG)
+        if drop_chance > 0 and random.randint(1, 100) <= drop_chance:
             await add_diamonds(user_id, 1) 
-            # print(f"💎 +1 Diamond to {message.author.name}") # Optional
+            # print(f"💎 RNG HIT! +1 Diamond to {message.author.name} (Delay: {delay:.1f}s)")
 
     # -------------------------------------------------------------
     # 🛡️ THE SPAM SHIELD: 4-Second Cooldown (For AI Pings)
