@@ -324,8 +324,6 @@ async def before_loops():
 async def on_ready():
     print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
 
-    
-    
     # --- 1. START THE AUTO-POSTER LOOPS ---
     if not meme_dropper_loop.is_running():
         meme_dropper_loop.start()
@@ -354,9 +352,8 @@ async def on_ready():
                         pass
         print("✅ Boot-up mass rename complete!")
 
-# --- 3. START ECONOMY ---
+    # --- 3. START ECONOMY ---
     await setup_diamond_vault()
-
 
 
 
