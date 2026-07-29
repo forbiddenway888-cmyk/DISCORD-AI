@@ -11,99 +11,6 @@ import yt_dlp
 import random
 import time
 import re
-import aiosqlite
-# ==========================================
-# 🎯 THE LURKER BOUNTY (MINI-QUESTS)
-# ==========================================
-@tasks.loop(minutes=1) # Wakes up every 20 minutes
-async def lurker_bounty_loop():
-    MAIN_CHAT_ID = 1522261977236242612 # <-- Your main chat ID
-    channel = discord_client.get_channel(MAIN_CHAT_ID)
-    
-    if not channel:
-        return
-
-    current_time = time.time()
-    lurkers = []
-    
-    # 1. Find people who chatted before, but have been quiet for over 15 minutes
-    for uid, last_time in user_diamond_cooldowns.items():
-        if current_time - last_time > 900: # 900 seconds = 15 minutes
-            lurkers.append(uid)
-            
-    # 2. Pick ONE randomly and give them a quest
-    if lurkers:
-        target_id = random.choice(lurkers)
-        bounty = random.randint(3, 5) 
-        
-        # 3. Drop the Quest
-        embed = discord.Embed(
-            title="🎯 RANDOM BOUNTY!", 
-            description=f"<@{target_id}> You have **60 seconds** to react to this message with 💎 to earn **{bounty} Diamonds!**",
-            color=0x2b2d31
-        )
-        msg = await channel.send(content=f"<@{target_id}>", embed=embed)
-        await msg.add_reaction("💎")
-        
-        # 4. Wait (Keep this at 10 for testing, change to 60 for production)
-        await asyncio.sleep(10) 
-        
-        # 5. FETCH AND VERIFY (Zero bandwidth database injection)
-        try:
-            # We have to fetch the message again to see the new clicks
-            updated_msg = await channel.fetch_message(msg.id)
-            reaction = discord.utils.get(updated_msg.reactions, emoji="💎")
-            
-            claimed = False
-            if reaction:
-                # Check if our specific target was one of the people who clicked
-                async for user in reaction.users():
-                    if user.id == target_id:
-                        claimed = True
-                        break
-                        
-            if claimed:
-                await add_diamonds(target_id, bounty)
-                await msg.edit(content=f"✅ <@{target_id}> secured the bag! Earned **{bounty} Diamonds!**", embed=None)
-            else:
-                await msg.edit(content=f"❌ <@{target_id}> was too slow. The Diamonds vanished.", embed=None)
-                
-        except Exception as e:
-            print(f"Bounty check error: {e}")
-
-# ==========================================
-# 💎 THE DIAMOND VAULT (DATABASE SETUP)
-# ==========================================
-async def setup_diamond_vault():
-    # Creates a local database file (Zero bandwidth, lightning fast)
-    async with aiosqlite.connect("forbid_economy.db") as db:
-        await db.execute('''
-            CREATE TABLE IF NOT EXISTS users (
-                user_id INTEGER PRIMARY KEY,
-                diamonds INTEGER DEFAULT 0
-            )
-        ''')
-        await db.commit()
-    print("💎 Diamond Vault securely initialized.")
-
-# ==========================================
-# 💎 DIAMOND ECONOMY: EARNING & COOLDOWNS
-# ==========================================
-
-# In-memory dictionary to track 60-second cooldowns (Zero bandwidth!)
-user_diamond_cooldowns = {}
-
-async def add_diamonds(user_id: int, amount: int):
-    async with aiosqlite.connect("forbid_economy.db") as db:
-        # This brilliant SQLite line either creates the user if they don't exist, 
-        # OR adds to their balance if they are already in the vault.
-        await db.execute('''
-            INSERT INTO users (user_id, diamonds) 
-            VALUES (?, ?) 
-            ON CONFLICT(user_id) DO UPDATE SET diamonds = diamonds + ?
-        ''', (user_id, amount, amount))
-        await db.commit()
-    
 
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
@@ -401,6 +308,8 @@ async def before_loops():
 async def on_ready():
     print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
 
+    
+    
     # --- 1. START THE AUTO-POSTER LOOPS ---
     if not meme_dropper_loop.is_running():
         meme_dropper_loop.start()
@@ -412,8 +321,6 @@ async def on_ready():
         afk_vc_kicker.start()
     if not smart_pfp_dropper.is_running():
         smart_pfp_dropper.start()
-    if not lurker_bounty_loop.is_running(): 
-        lurker_bounty_loop.start()
 
     # --- 2. MASS RENAME ON BOOT ---
     if CLAN_MODE_ENABLED:
@@ -431,8 +338,6 @@ async def on_ready():
                         pass
         print("✅ Boot-up mass rename complete!")
 
-    # --- 3. START ECONOMY ---
-    await setup_diamond_vault()
 
 
 
@@ -573,39 +478,10 @@ async def on_message(message):
     lower_raw = raw_content.lower()
     current_time = time.time()
     
-    # -------------------------------------------------------------
-    # 💎 STEP 3: THE DYNAMIC ECONOMY (RNG & CHAT SPEED)
-    # -------------------------------------------------------------
-    # Get the time since their last message, then update it immediately
-    last_time = user_diamond_cooldowns.get(user_id, 0)
-    delay = current_time - last_time
-    user_diamond_cooldowns[user_id] = current_time 
-    
-    clean_content = raw_content.strip()
-    
-    # 1. Base Anti-Spam Check (At least 8 chars, 2 words)
-    if len(clean_content) >= 8 and len(clean_content.split()) >= 2:
-        
-        # 2. Calculate the Drop Chance based on chat speed
-        drop_chance = 0
-        if delay < 5:
-            drop_chance = 0    # SPAM: 0% chance
-        elif 5 <= delay <= 15:
-            drop_chance = 25   # FAST CHAT: 25% chance
-        else:
-            drop_chance = 65   # NATURAL PACE: 65% chance
-            
-        # 3. Roll the Dice! (Zero bandwidth RNG)
-        if drop_chance > 0 and random.randint(1, 100) <= drop_chance:
-            await add_diamonds(user_id, 1) 
-            # print(f"💎 RNG HIT! +1 Diamond to {message.author.name} (Delay: {delay:.1f}s)")
-
-    # -------------------------------------------------------------
-    # 🛡️ THE SPAM SHIELD: 4-Second Cooldown (For AI Pings)
-    # -------------------------------------------------------------
+    # 🛡️ THE SPAM SHIELD: 4-Second Cooldown
     # If they messaged the bot less than 4 seconds ago, completely ignore it.
     if user_id in user_cooldowns and (current_time - user_cooldowns[user_id] < 4):
-        return
+        return 
 
     # Check if they specifically pinged the bot or said its name
     is_pinged = discord_client.user.mentioned_in(message)
