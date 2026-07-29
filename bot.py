@@ -263,8 +263,9 @@ async def smart_pfp_dropper():
                     print(f"🚀 Dumping batch of {len(images_to_send)} images to channel {target_channel_id}!")
                     
                     for img_url in images_to_send:
-                        # Native text drop (fixes the ugly blank embed borders)
-                        drop_text = f"🔥 **Fresh Drop** | *Via Forbid API*\n{img_url}"
+                        # 🪄 THE INVISIBLE LINK TRICK: Hides the URL text completely but shows the native full-size image!
+                        # [\u200b] is a zero-width invisible space.
+                        drop_text = f"🔥 **Fresh Drop** | *Via Forbid API*\n[\u200b]({img_url})"
                         
                         await channel.send(content=drop_text)
                         await asyncio.sleep(2) 
@@ -272,7 +273,6 @@ async def smart_pfp_dropper():
                 # Clear the vault and reset the 2-hour timer
                 image_vault[target_channel_id] = []
                 next_drop_time[target_channel_id] = current_time
-
 
 # ==========================================
 # 🎮 LOOP 5: THE 2-HOUR GAMING NEWS & TIPS DROP
