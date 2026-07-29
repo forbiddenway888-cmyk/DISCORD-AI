@@ -244,6 +244,8 @@ async def afk_vc_kicker():
 # ==========================================
 # 🥷 LOOP 6: THE SMART PFP BATCH DROPPER
 # ==========================================
+AESTHETIC_TEXT = "`✦` `◆` `✦` • [Invite](https://discord.com/oauth2/authorize?client_id=1373666241033535558) • `✦` `◆` `✦`"
+
 @tasks.loop(minutes=1)
 async def smart_pfp_dropper():
     current_time = time.time()
@@ -262,12 +264,27 @@ async def smart_pfp_dropper():
                     images_to_send = vault[:10]
                     print(f"🚀 Dumping batch of {len(images_to_send)} images to channel {target_channel_id}!")
                     
+                    # Custom F0RB1D branding based on which channel it drops in
+                    footer_text = "F0RB1D • Premium Drops"
+                    if target_channel_id == 1522270004928577697:
+                        footer_text = "F0RB1D • Male pfps"
+                    elif target_channel_id == 1531855329376206878:
+                        footer_text = "F0RB1D • Female pfps"
+                    elif target_channel_id == 1522270044342714399:
+                        footer_text = "F0RB1D • Banners"
+                    
                     for img_url in images_to_send:
-                        # 🪄 THE INVISIBLE LINK TRICK: Hides the URL text completely but shows the native full-size image!
-                        # [\u200b] is a zero-width invisible space.
-                        drop_text = f"🔥 **Fresh Drop** | *Via Forbid API*\n[\u200b]({img_url})"
                         
-                        await channel.send(content=drop_text)
+                        # 1. 0x2b2d31 is Discord's exact background color (Makes the embed box invisible)
+                        # 2. No Title. No Description. Just the image and the footer.
+                        embed = discord.Embed(color=0x2b2d31)
+                        embed.set_image(url=img_url)
+                        embed.set_footer(text=footer_text)
+                        
+                        # Send the aesthetic text ON TOP, with the invisible embed underneath!
+                        await channel.send(content=AESTHETIC_TEXT, embed=embed)
+                        
+                        # Wait 2 seconds between drops to avoid Discord rate limits
                         await asyncio.sleep(2) 
                         
                 # Clear the vault and reset the 2-hour timer
