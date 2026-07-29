@@ -263,17 +263,10 @@ async def smart_pfp_dropper():
                     print(f"🚀 Dumping batch of {len(images_to_send)} images to channel {target_channel_id}!")
                     
                     for img_url in images_to_send:
-                        # Build the clean drop embed
-                        embed = discord.Embed(
-                            title="🔥 Fresh Drop",
-                            color=discord.Color.dark_theme()
-                        )
-                        embed.set_image(url=img_url)
-                        embed.set_footer(text="Via Forbid API")
+                        # Native text drop (fixes the ugly blank embed borders)
+                        drop_text = f"🔥 **Fresh Drop** | *Via Forbid API*\n{img_url}"
                         
-                        # Dump the image
-                        await channel.send(embed=embed)
-                        # Wait 2 seconds between drops to avoid rate limits
+                        await channel.send(content=drop_text)
                         await asyncio.sleep(2) 
                         
                 # Clear the vault and reset the 2-hour timer
@@ -434,22 +427,29 @@ async def on_message(message):
     global last_drop_times
     
     # -------------------------------------------------------------
-    # 📌 STEP 2: THE VAULT HOARDER
+    # 📌 STEP 2: THE VAULT HOARDER (GALLERY THIEF)
     # -------------------------------------------------------------
     if message.author.id == PFP_BOT_ID and message.channel.id in PFP_ROUTER:
         target_channel_id = PFP_ROUTER[message.channel.id]
         
-        image_url = None
-        # Extract the raw link
-        if message.embeds and message.embeds[0].image:
-            image_url = message.embeds[0].image.url
-        elif message.attachments:
-            image_url = message.attachments[0].url
-            
-        if image_url:
-            # Save it to the vault instead of sending immediately!
-            image_vault[target_channel_id].append(image_url)
-            print(f"🥷 Stole image! Vault {target_channel_id} has {len(image_vault[target_channel_id])}/10 images.")
+        stolen_count = 0
+        
+        # 1. Steal ALL images if they are sent as attachments
+        if message.attachments:
+            for att in message.attachments:
+                if att.url:
+                    image_vault[target_channel_id].append(att.url)
+                    stolen_count += 1
+                    
+        # 2. Steal ALL images if they are sent as embeds
+        if message.embeds:
+            for emb in message.embeds:
+                if emb.image and emb.image.url:
+                    image_vault[target_channel_id].append(emb.image.url)
+                    stolen_count += 1
+                    
+        if stolen_count > 0:
+            print(f"🥷 Stole {stolen_count} images! Vault {target_channel_id} now has {len(image_vault[target_channel_id])} images.")
             
         # Stop processing so the Titanium Lock doesn't trigger
         return
