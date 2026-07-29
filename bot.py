@@ -28,6 +28,25 @@ async def setup_diamond_vault():
         await db.commit()
     print("💎 Diamond Vault securely initialized.")
 
+# ==========================================
+# 💎 DIAMOND ECONOMY: EARNING & COOLDOWNS
+# ==========================================
+
+# In-memory dictionary to track 60-second cooldowns (Zero bandwidth!)
+user_diamond_cooldowns = {}
+
+async def add_diamonds(user_id: int, amount: int):
+    async with aiosqlite.connect("forbid_economy.db") as db:
+        # This brilliant SQLite line either creates the user if they don't exist, 
+        # OR adds to their balance if they are already in the vault.
+        await db.execute('''
+            INSERT INTO users (user_id, diamonds) 
+            VALUES (?, ?) 
+            ON CONFLICT(user_id) DO UPDATE SET diamonds = diamonds + ?
+        ''', (user_id, amount, amount))
+        await db.commit()
+    
+
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
 FFMPEG_OPTIONS = {
