@@ -244,9 +244,6 @@ async def afk_vc_kicker():
 # ==========================================
 # 🥷 LOOP 6: THE SMART PFP BATCH DROPPER
 # ==========================================
-# Aesthetic text with a DOWNLOAD button instead of Invite
-AESTHETIC_TEXT = "`♠` `🖤` `♠` • [Download]"
-
 @tasks.loop(minutes=1)
 async def smart_pfp_dropper():
     current_time = time.time()
@@ -276,15 +273,15 @@ async def smart_pfp_dropper():
                     
                     for img_url in images_to_send:
                         
-                        # Make the [Download] button point directly to the full image URL
-                        custom_aesthetic_bar = f"`♠` `` `♠` • [Download]({img_url}) • `♠` `🖤` `♠`"
+                        # 💎 CLEANED UP FORMATTING: Perfectly symmetrical aesthetic bar with a working Download link
+                        custom_aesthetic_bar = f"`♠` `🖤` `♠` • [Download]({img_url}) • `♠` `🖤` `♠`"
                         
                         # Build a clean embed holding the image and F0RB1D footer
                         embed = discord.Embed(color=0x2b2d31)
                         embed.set_image(url=img_url)
                         embed.set_footer(text=footer_text)
                         
-                        # Send it with suppress_embeds to block any outside bot previews from leaking in
+                        # Send the message cleanly
                         await channel.send(content=custom_aesthetic_bar, embed=embed)
                         
                         # 2-second delay between each image to avoid rate limits
@@ -293,7 +290,6 @@ async def smart_pfp_dropper():
                 # Clear the vault and reset the 2-hour timer
                 image_vault[target_channel_id] = []
                 next_drop_time[target_channel_id] = current_time
-
 # ==========================================
 # 🎮 LOOP 5: THE 2-HOUR GAMING NEWS & TIPS DROP
 # ==========================================
