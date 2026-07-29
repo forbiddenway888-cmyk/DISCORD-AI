@@ -15,10 +15,9 @@ import aiosqlite
 # ==========================================
 # 🎯 THE LURKER BOUNTY (MINI-QUESTS)
 # ==========================================
-@tasks.loop(minutes=20) # Wakes up every 20 minutes
+@tasks.loop(minutes=1) # Wakes up every 20 minutes
 async def lurker_bounty_loop():
-    # Make sure we have a specific channel to drop these in (Replace with your main chat ID)
-    MAIN_CHAT_ID = 1522261977236242612 # <-- PUT YOUR MAIN CHAT ID HERE
+    MAIN_CHAT_ID = 1522261977236242612 # <-- Your main chat ID
     channel = discord_client.get_channel(MAIN_CHAT_ID)
     
     if not channel:
@@ -32,10 +31,10 @@ async def lurker_bounty_loop():
         if current_time - last_time > 900: # 900 seconds = 15 minutes
             lurkers.append(uid)
             
-    # 2. If we found lurkers, pick ONE randomly and give them a quest
+    # 2. Pick ONE randomly and give them a quest
     if lurkers:
         target_id = random.choice(lurkers)
-        bounty = random.randint(3, 5) # Offer 3 to 5 Diamonds
+        bounty = random.randint(3, 5) 
         
         # 3. Drop the Quest
         embed = discord.Embed(
@@ -46,11 +45,31 @@ async def lurker_bounty_loop():
         msg = await channel.send(content=f"<@{target_id}>", embed=embed)
         await msg.add_reaction("💎")
         
-        # 4. Wait 60 seconds, then check if they reacted!
-        await asyncio.sleep(10)
+        # 4. Wait (Keep this at 10 for testing, change to 60 for production)
+        await asyncio.sleep(10) 
         
-        # We will add the logic to check the reaction and pay them in Step 2!
-        print(f"🎯 Quest sent to {target_id}. Checking results in 60s...")
+        # 5. FETCH AND VERIFY (Zero bandwidth database injection)
+        try:
+            # We have to fetch the message again to see the new clicks
+            updated_msg = await channel.fetch_message(msg.id)
+            reaction = discord.utils.get(updated_msg.reactions, emoji="💎")
+            
+            claimed = False
+            if reaction:
+                # Check if our specific target was one of the people who clicked
+                async for user in reaction.users():
+                    if user.id == target_id:
+                        claimed = True
+                        break
+                        
+            if claimed:
+                await add_diamonds(target_id, bounty)
+                await msg.edit(content=f"✅ <@{target_id}> secured the bag! Earned **{bounty} Diamonds!**", embed=None)
+            else:
+                await msg.edit(content=f"❌ <@{target_id}> was too slow. The Diamonds vanished.", embed=None)
+                
+        except Exception as e:
+            print(f"Bounty check error: {e}")
 
 # ==========================================
 # 💎 THE DIAMOND VAULT (DATABASE SETUP)
