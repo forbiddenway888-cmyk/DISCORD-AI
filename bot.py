@@ -179,7 +179,7 @@ async def auto_image_dropper():
     # Defines the search topics for Unsplash
     image_channels = {
         # 🛑 CHANGED: Ripped out "anime". Forced real-life photography and aesthetic boys/girls.
-        "𓆩︱pfps︱𓆪": "portrait photography, aesthetic boy, aesthetic girl, real life, streetwear",
+        "𓆩︱male-pfps︱𓆪": "portrait photography, aesthetic boy, aesthetic girl, real life, streetwear",
         "𓆩︱banners︱𓆪": "landscape, dark aesthetic, city night, luxury cars, wallpaper",
         "𓆩︱icons︱𓆪": "minimalist logo, dark glowing, abstract aesthetic"
     }
@@ -224,15 +224,54 @@ async def auto_image_dropper():
                 print(f"Auto-image loop error in {channel.name}: {e}")
 
 # ==========================================
-# 💤 LOOP 4: THE AFK VC SAVER (ZERO BANDWIDTH)
+# 💤 LOOP 4: THE AFK VC SAVER (UPGRADED)
 # ==========================================
 @tasks.loop(minutes=5)
 async def afk_vc_kicker():
     for vc in discord_client.voice_clients:
-        # If the bot is in a VC but no music is playing
-        if not vc.is_playing():
+        
+        # Reason 1: The bot is completely alone in the VC (everyone else left)
+        if len(vc.channel.members) == 1:
+            vc.stop() # Kill the infinite music loop
             await vc.disconnect(force=True)
-            print("💤 Bot was idle in VC for 5 mins. Disconnected to save bandwidth.")
+            print(f"💤 Bot was left alone in '{vc.channel.name}'. Disconnected to save bandwidth.")
+            
+        # Reason 2: The bot is in a VC with people, but no music is playing
+        elif not vc.is_playing():
+            await vc.disconnect(force=True)
+            print(f"💤 Bot was idle (no music) in '{vc.channel.name}'. Disconnected.")
+
+# ==========================================
+# 🥷 LOOP 6: THE SMART PFP BATCH DROPPER
+# ==========================================
+AESTHETIC_TEXT = "`♠` `🖤` `♠` • [Invite](https://discord.com/oauth2/authorize?client_id=1373666241033535558) • `♠` `🖤` `♠`"
+
+@tasks.loop(minutes=1)
+async def smart_pfp_dropper():
+    current_time = time.time()
+    
+    for target_channel_id, vault in image_vault.items():
+        time_passed = current_time - next_drop_time[target_channel_id]
+        
+        # Check if 2 hours (7200 seconds) have passed
+        if time_passed >= 7200:
+            
+            # THE LOGIC: Drop if we have 10+ images, OR if we waited the 1-minute grace period (7260s)
+            if len(vault) >= 10 or (len(vault) > 0 and time_passed >= 7260):
+                channel = discord_client.get_channel(target_channel_id)
+                
+                if channel:
+                    images_to_send = vault[:10]
+                    print(f"🚀 Dropping batch of {len(images_to_send)} images to channel {target_channel_id}!")
+                    
+                    for img_url in images_to_send:
+                        # Send with your custom aesthetic formatting
+                        await channel.send(content=f"{AESTHETIC_TEXT}\n{img_url}")
+                        await asyncio.sleep(2) 
+                        
+                # Clear the vault (ignore extras) and reset the 2-hour timer
+                image_vault[target_channel_id] = []
+                next_drop_time[target_channel_id] = current_time
 
 
 # ==========================================
@@ -243,7 +282,8 @@ async def afk_vc_kicker():
 @meme_dropper_loop.before_loop
 @chat_wakeupper_loop.before_loop
 @auto_image_dropper.before_loop
-@afk_vc_kicker.before_loop  # <--- YOU JUST NEED TO ADD THIS ONE LINE BRO
+@afk_vc_kicker.before_loop  
+@smart_pfp_dropper.before_loop # <--- ADD THIS
 
 async def before_loops():
     await discord_client.wait_until_ready()
@@ -263,6 +303,8 @@ async def on_ready():
         auto_image_dropper.start()
     if not afk_vc_kicker.is_running():
         afk_vc_kicker.start()
+    if not smart_pfp_dropper.is_running():
+        smart_pfp_dropper.start()
 
     # --- 2. MASS RENAME ON BOOT ---
     if CLAN_MODE_ENABLED:
@@ -349,24 +391,25 @@ async def on_member_remove(member):
             print(f"Leave error: {e}")
 
 # -------------------------------------------------------------
-# 📌 STEP 1: PFP ROUTER & TIMERS
+# 📌 STEP 1: PFP ROUTER & THE VAULT
 # -------------------------------------------------------------
-
-# 3rd-party PFP bot ID
 PFP_BOT_ID = 1373666241033535558
 
-# Delay between public drops (30 minutes = 1800 seconds)
-DROP_INTERVAL = 1800
-
-# Channel Mapping: { Hidden Feed ID : Public Target ID }
 PFP_ROUTER = {
     1531914610498600990: 1522270004928577697,  # Male Feed -> Male Channel
     1531915959332376576: 1531855329376206878,  # Female Feed -> Female Channel
     1531916084440072243: 1522270044342714399,  # Banner Feed -> Banner Channel
 }
 
-# Stores the last drop timestamp for each channel
-last_drop_times = {
+# 🏦 THE VAULT: Stores stolen image URLs until we reach 10
+image_vault = {
+    1522270004928577697: [],
+    1531855329376206878: [],
+    1522270044342714399: [],
+}
+
+# Timers to make sure we wait 2 hours between batch drops
+next_drop_time = {
     1522270004928577697: 0,
     1531855329376206878: 0,
     1522270044342714399: 0,
@@ -384,36 +427,25 @@ async def on_message(message):
     global last_drop_times
     
     # -------------------------------------------------------------
-    # 📌 STEP 2: THE 300 IQ PFP INTERCEPTOR
+    # 📌 STEP 2: THE VAULT HOARDER
     # -------------------------------------------------------------
-    # Check if the message is from the 3rd-party bot AND in one of our hidden feeds
     if message.author.id == PFP_BOT_ID and message.channel.id in PFP_ROUTER:
         target_channel_id = PFP_ROUTER[message.channel.id]
-        current_time = time.time()
         
-        # Check if 30 minutes (1800s) have passed for this specific channel
-        if current_time - last_drop_times[target_channel_id] >= DROP_INTERVAL:
+        image_url = None
+        # Extract the raw link
+        if message.embeds and message.embeds[0].image:
+            image_url = message.embeds[0].image.url
+        elif message.attachments:
+            image_url = message.attachments[0].url
             
-            image_url = None
+        if image_url:
+            # Save it to the vault instead of sending immediately!
+            image_vault[target_channel_id].append(image_url)
+            print(f"🥷 Stole image! Vault {target_channel_id} has {len(image_vault[target_channel_id])}/10 images.")
             
-            # Extract the raw 4K CDN link (zero bandwidth cost)
-            if message.embeds and message.embeds[0].image:
-                image_url = message.embeds[0].image.url
-            elif message.attachments:
-                image_url = message.attachments[0].url
-                
-            if image_url:
-                # Update the timer so it waits another 30 mins
-                last_drop_times[target_channel_id] = current_time
-                
-                # Get the public channel and drop it silently
-                target_channel = discord_client.get_channel(target_channel_id)
-                if target_channel:
-                    await target_channel.send(image_url)
-                    
-        # Stop processing this bot message here so it doesn't trigger anything else
+        # Stop processing so the Titanium Lock doesn't trigger
         return
-
     # THE TITANIUM LOCK: Ignore all other bots
     if message.author.bot:
         return
