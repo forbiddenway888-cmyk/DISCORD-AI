@@ -12,6 +12,45 @@ import random
 import time
 import re
 import aiosqlite
+# ==========================================
+# 🎯 THE LURKER BOUNTY (MINI-QUESTS)
+# ==========================================
+@tasks.loop(minutes=20) # Wakes up every 20 minutes
+async def lurker_bounty_loop():
+    # Make sure we have a specific channel to drop these in (Replace with your main chat ID)
+    MAIN_CHAT_ID = 1522261977236242612 # <-- PUT YOUR MAIN CHAT ID HERE
+    channel = discord_client.get_channel(MAIN_CHAT_ID)
+    
+    if not channel:
+        return
+
+    current_time = time.time()
+    lurkers = []
+    
+    # 1. Find people who chatted before, but have been quiet for over 15 minutes
+    for uid, last_time in user_diamond_cooldowns.items():
+        if current_time - last_time > 900: # 900 seconds = 15 minutes
+            lurkers.append(uid)
+            
+    # 2. If we found lurkers, pick ONE randomly and give them a quest
+    if lurkers:
+        target_id = random.choice(lurkers)
+        bounty = random.randint(3, 5) # Offer 3 to 5 Diamonds
+        
+        # 3. Drop the Quest
+        embed = discord.Embed(
+            title="🎯 RANDOM BOUNTY!", 
+            description=f"<@{target_id}> You have **60 seconds** to react to this message with 💎 to earn **{bounty} Diamonds!**",
+            color=0x2b2d31
+        )
+        msg = await channel.send(content=f"<@{target_id}>", embed=embed)
+        await msg.add_reaction("💎")
+        
+        # 4. Wait 60 seconds, then check if they reacted!
+        await asyncio.sleep(10)
+        
+        # We will add the logic to check the reaction and pay them in Step 2!
+        print(f"🎯 Quest sent to {target_id}. Checking results in 60s...")
 
 # ==========================================
 # 💎 THE DIAMOND VAULT (DATABASE SETUP)
