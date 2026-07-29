@@ -348,6 +348,30 @@ async def on_member_remove(member):
         except Exception as e:
             print(f"Leave error: {e}")
 
+# -------------------------------------------------------------
+# 📌 STEP 1: PFP ROUTER & TIMERS
+# -------------------------------------------------------------
+
+# 3rd-party PFP bot ID
+PFP_BOT_ID = 1373666241033535558
+
+# Delay between public drops (30 minutes = 1800 seconds)
+DROP_INTERVAL = 1800
+
+# Channel Mapping: { Hidden Feed ID : Public Target ID }
+PFP_ROUTER = {
+    1531914610498600990: 1522270004928577697,  # Male Feed -> Male Channel
+    1531915959332376576: 1531855329376206878,  # Female Feed -> Female Channel
+    1531916084440072243: 1522270044342714399,  # Banner Feed -> Banner Channel
+}
+
+# Stores the last drop timestamp for each channel
+last_drop_times = {
+    1522270004928577697: 0,
+    1531855329376206878: 0,
+    1522270044342714399: 0,
+}
+
 
 
 # --- GLOBAL TRACKERS ---
@@ -357,7 +381,40 @@ user_diamonds = {} # 💎 Tracks everyone's video currency and cooldowns
 # --- MESSAGE HANDLING ---
 @discord_client.event
 async def on_message(message):
-    # THE TITANIUM LOCK: Ignore messages from ANY bot
+    global last_drop_times
+    
+    # -------------------------------------------------------------
+    # 📌 STEP 2: THE 300 IQ PFP INTERCEPTOR
+    # -------------------------------------------------------------
+    # Check if the message is from the 3rd-party bot AND in one of our hidden feeds
+    if message.author.id == PFP_BOT_ID and message.channel.id in PFP_ROUTER:
+        target_channel_id = PFP_ROUTER[message.channel.id]
+        current_time = time.time()
+        
+        # Check if 30 minutes (1800s) have passed for this specific channel
+        if current_time - last_drop_times[target_channel_id] >= DROP_INTERVAL:
+            
+            image_url = None
+            
+            # Extract the raw 4K CDN link (zero bandwidth cost)
+            if message.embeds and message.embeds[0].image:
+                image_url = message.embeds[0].image.url
+            elif message.attachments:
+                image_url = message.attachments[0].url
+                
+            if image_url:
+                # Update the timer so it waits another 30 mins
+                last_drop_times[target_channel_id] = current_time
+                
+                # Get the public channel and drop it silently
+                target_channel = discord_client.get_channel(target_channel_id)
+                if target_channel:
+                    await target_channel.send(image_url)
+                    
+        # Stop processing this bot message here so it doesn't trigger anything else
+        return
+
+    # THE TITANIUM LOCK: Ignore all other bots
     if message.author.bot:
         return
 
