@@ -513,10 +513,25 @@ async def on_message(message):
     lower_raw = raw_content.lower()
     current_time = time.time()
     
-    # 🛡️ THE SPAM SHIELD: 4-Second Cooldown
+    # -------------------------------------------------------------
+    # 💎 STEP 3: THE DIAMOND ECONOMY (PASSIVE EARNING)
+    # -------------------------------------------------------------
+    last_diamond_time = user_diamond_cooldowns.get(user_id, 0)
+    
+    if current_time - last_diamond_time >= 60:
+        clean_content = raw_content.strip()
+        # Minimum 8 chars and 2 words to stop spam
+        if len(clean_content) >= 8 and len(clean_content.split()) >= 2:
+            user_diamond_cooldowns[user_id] = current_time
+            await add_diamonds(user_id, 1) 
+            # print(f"💎 +1 Diamond to {message.author.name}") # Optional
+
+    # -------------------------------------------------------------
+    # 🛡️ THE SPAM SHIELD: 4-Second Cooldown (For AI Pings)
+    # -------------------------------------------------------------
     # If they messaged the bot less than 4 seconds ago, completely ignore it.
     if user_id in user_cooldowns and (current_time - user_cooldowns[user_id] < 4):
-        return 
+        return
 
     # Check if they specifically pinged the bot or said its name
     is_pinged = discord_client.user.mentioned_in(message)
