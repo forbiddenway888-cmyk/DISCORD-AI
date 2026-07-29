@@ -244,8 +244,6 @@ async def afk_vc_kicker():
 # ==========================================
 # 🥷 LOOP 6: THE SMART PFP BATCH DROPPER
 # ==========================================
-AESTHETIC_TEXT = "`♠` `🖤` `♠` • [Invite](https://discord.com/oauth2/authorize?client_id=1373666241033535558) • `♠` `🖤` `♠`"
-
 @tasks.loop(minutes=1)
 async def smart_pfp_dropper():
     current_time = time.time()
@@ -262,14 +260,23 @@ async def smart_pfp_dropper():
                 
                 if channel:
                     images_to_send = vault[:10]
-                    print(f"🚀 Dropping batch of {len(images_to_send)} images to channel {target_channel_id}!")
+                    print(f"🚀 Dumping batch of {len(images_to_send)} images to channel {target_channel_id}!")
                     
                     for img_url in images_to_send:
-                        # Send with your custom aesthetic formatting
-                        await channel.send(content=f"{AESTHETIC_TEXT}\n{img_url}")
+                        # Build the clean drop embed
+                        embed = discord.Embed(
+                            title="🔥 Fresh Drop",
+                            color=discord.Color.dark_theme()
+                        )
+                        embed.set_image(url=img_url)
+                        embed.set_footer(text="Via Forbid API")
+                        
+                        # Dump the image
+                        await channel.send(embed=embed)
+                        # Wait 2 seconds between drops to avoid rate limits
                         await asyncio.sleep(2) 
                         
-                # Clear the vault (ignore extras) and reset the 2-hour timer
+                # Clear the vault and reset the 2-hour timer
                 image_vault[target_channel_id] = []
                 next_drop_time[target_channel_id] = current_time
 
