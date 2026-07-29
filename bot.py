@@ -251,11 +251,11 @@ async def smart_pfp_dropper():
     for target_channel_id, vault in image_vault.items():
         time_passed = current_time - next_drop_time[target_channel_id]
         
-        # Check if 2 hours (7200 seconds) have passed
-        if time_passed >= 7200:
+        # Check if 30 minutes (1800 seconds) have passed
+        if time_passed >= 1800:
             
-            # THE LOGIC: Drop if we have 10+ images, OR if we waited the 1-minute grace period (7260s)
-            if len(vault) >= 10 or (len(vault) > 0 and time_passed >= 7260):
+            # THE LOGIC: Drop if we have 10+ images, OR if we waited the 1-minute grace period (1860s)
+            if len(vault) >= 10 or (len(vault) > 0 and time_passed >= 1860):
                 channel = discord_client.get_channel(target_channel_id)
                 
                 if channel:
@@ -287,7 +287,7 @@ async def smart_pfp_dropper():
                         # 2-second delay between each image to avoid rate limits
                         await asyncio.sleep(2) 
                         
-                # Clear the vault and reset the 2-hour timer
+                # Clear the vault and reset the 30-minute timer
                 image_vault[target_channel_id] = []
                 next_drop_time[target_channel_id] = current_time
 # ==========================================
