@@ -393,6 +393,8 @@ async def on_ready():
         afk_vc_kicker.start()
     if not smart_pfp_dropper.is_running():
         smart_pfp_dropper.start()
+    if not lurker_bounty_loop.is_running(): 
+        lurker_bounty_loop.start()
 
     # --- 2. MASS RENAME ON BOOT ---
     if CLAN_MODE_ENABLED:
