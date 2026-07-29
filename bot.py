@@ -15,8 +15,9 @@ import re
 # These settings stop the music from buffering or crashing randomly
 # These settings stop buffering, loop infinitely, AND heavily compress audio for zero-bandwidth 
 FFMPEG_OPTIONS = {
-    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-    'options': '-vn -b:a 96k'
+    # -vn disables video stream completely (saves huge RAM)
+    'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5 -vn',
+    'options': '-vn -loglevel quiet'
 }
 YDL_OPTIONS = {
     'format': 'bestaudio/best',
@@ -223,13 +224,26 @@ async def auto_image_dropper():
                 print(f"Auto-image loop error in {channel.name}: {e}")
 
 # ==========================================
-# 🎮 LOOP 4: THE 2-HOUR GAMING NEWS & TIPS DROP
+# 💤 LOOP 4: THE AFK VC SAVER (ZERO BANDWIDTH)
+# ==========================================
+@tasks.loop(minutes=5)
+async def afk_vc_kicker():
+    for vc in discord_client.voice_clients:
+        # If the bot is in a VC but no music is playing
+        if not vc.is_playing():
+            await vc.disconnect(force=True)
+            print("💤 Bot was idle in VC for 5 mins. Disconnected to save bandwidth.")
+
+
+# ==========================================
+# 🎮 LOOP 5: THE 2-HOUR GAMING NEWS & TIPS DROP
 # ==========================================
 
 # --- START ALL LOOPS WHEN BOT IS READY ---
 @meme_dropper_loop.before_loop
 @chat_wakeupper_loop.before_loop
 @auto_image_dropper.before_loop
+@afk_vc_kicker.before_loop  # <--- YOU JUST NEED TO ADD THIS ONE LINE BRO
 
 async def before_loops():
     await discord_client.wait_until_ready()
@@ -237,6 +251,8 @@ async def before_loops():
 @discord_client.event
 async def on_ready():
     print(f'🔥 WE LIVE! Logged in as {discord_client.user}')
+
+    
     
     # --- 1. START THE AUTO-POSTER LOOPS ---
     if not meme_dropper_loop.is_running():
@@ -245,6 +261,8 @@ async def on_ready():
         chat_wakeupper_loop.start()
     if not auto_image_dropper.is_running():
         auto_image_dropper.start()
+    if not afk_vc_kicker.is_running():
+        afk_vc_kicker.start()
 
     # --- 2. MASS RENAME ON BOOT ---
     if CLAN_MODE_ENABLED:
@@ -409,7 +427,7 @@ async def on_message(message):
         if message.author.voice:
             channel = message.author.voice.channel
             if not message.guild.voice_client:
-                await channel.connect()
+                await channel.connect(self_deaf=True)
                 await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
             else:
                 await message.reply("Bro, I'm already in a channel!")
@@ -426,7 +444,7 @@ async def on_message(message):
             
         vc = message.guild.voice_client
         if not vc:
-            vc = await message.author.voice.channel.connect()
+            vc = await message.author.voice.channel.connect(self_deaf=True)
 
         await message.reply(f"🔍 Searching for: `{song_query}`...")
         
@@ -737,7 +755,7 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
             if message.author.voice:
                 channel = message.author.voice.channel
                 if not message.guild.voice_client:
-                    await channel.connect()
+                    await channel.connect(self_deaf=True)
                     await message.reply("🔥 I'm in the VC bro. Tell me what to play.")
                 else:
                     await message.reply("Bro, I'm already in a channel!")
@@ -761,7 +779,7 @@ CRITICAL DIRECTIVE: If you aren't triggering one of the 5 specific visual/audio 
             else:
                 vc = message.guild.voice_client
                 if not vc:
-                    vc = await message.author.voice.channel.connect()
+                    vc = await message.author.voice.channel.connect(self_deaf=True)
 
                 await message.reply(f"🔍 AI DJ searching for: `{song_query}`...")
                 
